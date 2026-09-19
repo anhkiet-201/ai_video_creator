@@ -166,6 +166,8 @@ def install_pytorch(has_nvidia: bool):
     # Kiểm tra torch đã cài đặt chưa
     try:
         import torch
+        import torchvision
+        import torchaudio
         cuda_avail = torch.cuda.is_available()
         UI.ok(f"PyTorch đã được cài đặt: phiên bản {torch.__version__} (CUDA: {cuda_avail})")
         if has_nvidia and not cuda_avail:
@@ -173,20 +175,12 @@ def install_pytorch(has_nvidia: bool):
         else:
             return
     except ImportError:
-        UI.info("Chưa tìm thấy PyTorch. Đang chuẩn bị cài đặt...")
+        UI.info("Chưa tìm thấy PyTorch/torchvision/torchaudio đầy đủ. Đang chuẩn bị cài đặt...")
 
-    if has_nvidia:
-        cmd = [
-            sys.executable, "-m", "pip", "install", "torch", "torchaudio",
-            "--index-url", "https://download.pytorch.org/whl/cu121"
-        ]
-        desc = "Đang cài đặt PyTorch với hỗ trợ CUDA 12.1"
-    else:
-        cmd = [
-            sys.executable, "-m", "pip", "install", "torch", "torchaudio",
-            "--index-url", "https://download.pytorch.org/whl/cpu"
-        ]
-        desc = "Đang cài đặt PyTorch phiên bản CPU nhẹ"
+    cmd = [
+        sys.executable, "-m", "pip", "install", "torch", "torchvision", "torchaudio"
+    ]
+    desc = "Đang cài đặt PyTorch (pip install torch torchvision torchaudio)"
 
     run_cmd(cmd, desc=desc, check=True)
     UI.ok("Cài đặt PyTorch thành công.")
