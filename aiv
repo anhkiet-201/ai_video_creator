@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# aiv - Shell script wrapper tương đương aiv.bat cho macOS / Linux
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# 1. Khi không có tham số: mặc định chạy setup.py
+if [ $# -eq 0 ]; then
+    python3 "$BASE_DIR/setup.py"
+    exit $?
+fi
+
+# 2. Khi tham số đầu tiên là "update": thực hiện git pull
+if [ "$1" = "update" ]; then
+    echo "🔄 Đang cập nhật AI Video Creator (git pull)..."
+    git -C "$BASE_DIR" pull
+    exit $?
+fi
+
+HAS_SOURCE=0
+for arg in "$@"; do
+    if [ "$arg" = "--source-folder" ]; then
+        HAS_SOURCE=1
+        break
+    fi
+done
+
+if [ "$HAS_SOURCE" -eq 1 ]; then
+    python3 "$BASE_DIR/cli.py" "$@"
+else
+    python3 "$BASE_DIR/cli.py" --source-folder "$(pwd)" "$@"
+fi
+
