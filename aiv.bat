@@ -9,7 +9,7 @@ if "%~1"=="" (
 
 REM 2. Neu tham so dau tien la update: chay git pull
 if /i "%~1"=="update" (
-    echo [i] Dang cap nhat AI Video Creator tu Git (git pull)...
+    echo [i] Dang cap nhat AI Video Creator tu Git ^(git pull^)...
     git -C "%~dp0" pull
     exit /b %ERRORLEVEL%
 )
@@ -19,11 +19,14 @@ for %%A in (%*) do (
     if /i "%%~A"=="--source-folder" set "HAS_SOURCE=1"
 )
 
-if "%HAS_SOURCE%"=="1" (
-    python "%~dp0cli.py" %*
-) else (
-    python "%~dp0cli.py" --source-folder "%CD%" %*
-)
+if "%HAS_SOURCE%"=="1" goto run_with_source
+python "%~dp0cli.py" --source-folder "%CD%" %*
+goto end
+
+:run_with_source
+python "%~dp0cli.py" %*
+
+:end
 
 endlocal
 
