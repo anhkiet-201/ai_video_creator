@@ -221,6 +221,19 @@ def resolve_config_conflicts(
             merged["randomize_bgm"] = False
             notices.append(f"Chỉ định file BGM '{merged['bgm']}' -> Tắt tự động bốc BGM ngẫu nhiên.")
 
+    # 4. Xử lý Content vs Content File
+    if "content" in explicit_keys and merged.get("content"):
+        if "content_file" in explicit_keys and merged.get("content_file"):
+            merged["content_file"] = None
+            notices.append("Cả --content và --content-file đều được truyền trên CLI -> Ưu tiên chuỗi văn bản trực tiếp từ --content.")
+        else:
+            merged["content_file"] = None
+    elif "content_file" in explicit_keys and merged.get("content_file"):
+        merged["content"] = None
+    elif merged.get("content_file"):
+        # Trong config hoặc mặc định có content_file -> ưu tiên file hơn content trong config
+        merged["content"] = None
+
     return merged, notices
 
 

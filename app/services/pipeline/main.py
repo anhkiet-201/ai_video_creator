@@ -242,7 +242,17 @@ def main():
     content_file_val = resolved.get("content_file")
     content_str_val = resolved.get("content")
 
-    if content_file_val:
+    if "content" in explicit_flags and content_str_val:
+        raw_content = content_str_val
+    elif "content_file" in explicit_flags and content_file_val:
+        c_path = resolve_filesystem_path(content_file_val, BASE_DIR)
+        if not c_path or not c_path.exists():
+            print(f"[✗] Lỗi: Không tìm thấy file content: {c_path}", file=sys.stderr)
+            sys.exit(1)
+        raw_content = c_path.read_text(encoding="utf-8")
+    elif content_str_val and not content_file_val:
+        raw_content = content_str_val
+    elif content_file_val:
         c_path = resolve_filesystem_path(content_file_val, BASE_DIR)
         if not c_path or not c_path.exists():
             print(f"[✗] Lỗi: Không tìm thấy file content: {c_path}", file=sys.stderr)
@@ -319,6 +329,14 @@ def main():
     if overridden:
         override_summary = ", ".join([f"--{f}" for f, _, _ in overridden])
         _print_param("Cờ CLI ghi đè runtime:", f"{len(overridden)} thông số ({override_summary})")
+
+    if resolved.get("content"):
+        content_preview = resolved["content"].strip().replace("\n", " ")
+        if len(content_preview) > 35:
+            content_preview = content_preview[:32] + "..."
+        _print_param("Nội dung đầu vào:", f"Trực tiếp từ CLI ({len(resolved['content'])} ký tự: \"{content_preview}\")")
+    elif resolved.get("content_file"):
+        _print_param("Nội dung đầu vào:", f"Từ file: {resolved['content_file']} ({len(raw_content)} ký tự)")
 
     _print_param("Thư mục tư liệu nguồn:", str(pipeline_input.video_source_path))
     _print_param("Số lượng video yêu cầu:", f"{pipeline_input.num_videos} video thành phẩm")

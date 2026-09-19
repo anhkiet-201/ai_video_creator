@@ -188,6 +188,71 @@ class TestCLIConfig(unittest.TestCase):
         self.assertFalse(is_cross_platform_absolute(r".\storage\outputs"))
         self.assertFalse(is_cross_platform_absolute("storage/outputs"))
 
+    def test_conflict_content_cli_overrides_content_file(self):
+        """Kiểm tra: Cờ CLI --content phải ghi đè content_file trong config (content_file thành None)."""
+        config_data = {
+            "content_file": "./content.txt",
+            "content": None,
+        }
+        cli_args = argparse.Namespace(
+            content="Tuyển dụng công nhân lắp ráp",
+            content_file=None,
+        )
+        explicit = {"content"}
+        resolved, overridden, notices = merge_config_with_cli(config_data, cli_args, explicit)
+
+        self.assertEqual(resolved["content"], "Tuyển dụng công nhân lắp ráp")
+        self.assertIsNone(resolved["content_file"])
+
+    def test_conflict_content_file_cli_overrides_content(self):
+        """Kiểm tra: Cờ CLI --content-file phải ghi đè content trong config (content thành None)."""
+        config_data = {
+            "content_file": None,
+            "content": "Văn bản cũ trong config",
+        }
+        cli_args = argparse.Namespace(
+            content=None,
+            content_file="job_description.txt",
+        )
+        explicit = {"content_file"}
+        resolved, overridden, notices = merge_config_with_cli(config_data, cli_args, explicit)
+
+        self.assertEqual(resolved["content_file"], "job_description.txt")
+        self.assertIsNone(resolved["content"])
+
+    def test_conflict_both_cli_flags_prefers_content(self):
+        """Kiểm tra: Khi CLI truyền cả 2 cờ --content và --content-file, chuỗi --content được ưu tiên."""
+        config_data = {
+            "content_file": "default.txt",
+            "content": None,
+        }
+        cli_args = argparse.Namespace(
+            content="Nội dung trực tiếp",
+            content_file="file_override.txt",
+        )
+        explicit = {"content", "content_file"}
+        resolved, overridden, notices = merge_config_with_cli(config_data, cli_args, explicit)
+
+        self.assertEqual(resolved["content"], "Nội dung trực tiếp")
+        self.assertIsNone(resolved["content_file"])
+        self.assertTrue(any("Ưu tiên chuỗi văn bản trực tiếp từ --content" in n for n in notices))
+
+    def test_conflict_config_both_prefers_content_file(self):
+        """Kiểm tra: Khi config có cả 2 và CLI không truyền cờ nào, ưu tiên content_file."""
+        config_data = {
+            "content_file": "my_job.txt",
+            "content": "Một nội dung nào đó",
+        }
+        cli_args = argparse.Namespace(
+            content=None,
+            content_file=None,
+        )
+        resolved, overridden, notices = merge_config_with_cli(config_data, cli_args, explicit_keys=set())
+
+        self.assertEqual(resolved["content_file"], "my_job.txt")
+        self.assertIsNone(resolved["content"])
+
 
 if __name__ == "__main__":
     unittest.main()
+
