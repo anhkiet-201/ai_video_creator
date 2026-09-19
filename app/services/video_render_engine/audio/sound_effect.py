@@ -219,7 +219,7 @@ def get_audio_duration(audio_path: Union[str, Path]) -> float:
             "-of", "csv=p=0",
             str(p),
         ]
-        res = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        res = subprocess.run(cmd, capture_output=True, text=True, check=True, encoding="utf-8", errors="replace")
         dur_str = res.stdout.strip()
         if dur_str:
             return float(dur_str)
@@ -307,7 +307,7 @@ def concatenate_tts_and_effect_audio(
         str(out_p),
     ]
 
-    res = subprocess.run(cmd, capture_output=True, text=True)
+    res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
     if res.returncode != 0:
         logger.error(f"Lỗi khi ghép nối TTS và Sound Effect qua FFmpeg: {res.stderr}")
         raise RuntimeError(f"FFmpeg ghép nối âm thanh thất bại: {res.stderr[-300:]}")

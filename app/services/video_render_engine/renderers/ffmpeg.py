@@ -86,6 +86,9 @@ class FFmpegBaseRenderer(BaseVideoRenderer):
     def _run_cmd(self, cmd: List[str], **kwargs: Any) -> subprocess.CompletedProcess:
         """Execute subprocess with platform-specific flags (e.g. CREATE_NO_WINDOW on Windows)."""
         merged_kwargs = {**_get_subprocess_extra_kwargs(), **kwargs}
+        if merged_kwargs.get("text"):
+            merged_kwargs.setdefault("encoding", "utf-8")
+            merged_kwargs.setdefault("errors", "replace")
         return subprocess.run(cmd, **merged_kwargs)
 
     def validate_environment(self) -> bool:
@@ -260,6 +263,8 @@ class FFmpegBaseRenderer(BaseVideoRenderer):
             segment_output = tmp_dir / f"{scene_id}.mp4"
 
             cmd = [self._ffmpeg_bin, "-y"]
+            if getattr(self, "hardware_accel", False) and self._encoder == "h264_nvenc":
+                cmd.extend(["-hwaccel", "auto"])
             if cut_plan.loop_needed:
                 cmd.extend(["-stream_loop", "-1"])
             cmd.extend([
@@ -268,6 +273,12 @@ class FFmpegBaseRenderer(BaseVideoRenderer):
                 "-i", str(cut_plan.video_path.resolve()),
                 "-vf", scale_vf,
                 "-c:v", self._encoder,
+            ])
+            if self._encoder == "h264_nvenc":
+                cmd.extend(["-preset", "p2"])
+            elif self._encoder == "libx264":
+                cmd.extend(["-preset", "veryfast"])
+            cmd.extend([
                 "-b:v", "6000k",
                 "-pix_fmt", "yuv420p",
                 "-an",
@@ -393,6 +404,12 @@ class FFmpegBaseRenderer(BaseVideoRenderer):
             cmd.extend([
                 "-t", f"{clip_dur:.3f}",
                 "-c:v", self._encoder,
+            ])
+            if self._encoder == "h264_nvenc":
+                cmd.extend(["-preset", "p2"])
+            elif self._encoder == "libx264":
+                cmd.extend(["-preset", "veryfast"])
+            cmd.extend([
                 "-b:v", "6000k",
                 "-pix_fmt", "yuv420p",
                 "-an",
@@ -688,6 +705,12 @@ class FFmpegBaseRenderer(BaseVideoRenderer):
 
         final_cmd.extend([
             "-c:v", self._encoder,
+        ])
+        if self._encoder == "h264_nvenc":
+            final_cmd.extend(["-preset", "p4"])
+        elif self._encoder == "libx264":
+            final_cmd.extend(["-preset", "medium"])
+        final_cmd.extend([
             "-b:v", "6000k",
             "-c:a", "aac",
             "-b:a", "192k",

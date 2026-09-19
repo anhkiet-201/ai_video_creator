@@ -812,14 +812,23 @@ class VideoCreationPipeline:
                     logger.error(f"[Plan {p_id}] {core}")
                     return
 
-                if "[Ghép scene" in core:
-                    m = re.search(r"\[Ghép scene (\d+)\]", core)
-                    sc_idx = m.group(1) if m else "?"
-                    total_sc = len(plan.scenes)
+                total_sc = len(plan.scenes)
+                if "Cắt segment" in core:
+                    m = re.search(r"\[Scene (\d+)\]", core)
+                    sc_idx = (int(m.group(1)) + 1) if m else "?"
                     if on_progress:
                         on_progress(
                             6,
-                            f"[Plan {plan_no}/{total_plans}] Đang ghép video cảnh {sc_idx}/{total_sc}...",
+                            f"[Plan {plan_no}/{total_plans}] Đang cắt phân cảnh video {sc_idx}/{total_sc}...",
+                            {"plan_index": plan_no, "total_plans": total_plans},
+                        )
+                elif "[Ghép scene" in core:
+                    m = re.search(r"\[Ghép scene (\d+)\]", core)
+                    sc_idx = (int(m.group(1)) + 1) if m else "?"
+                    if on_progress:
+                        on_progress(
+                            6,
+                            f"[Plan {plan_no}/{total_plans}] Đang ghép visual cảnh {sc_idx}/{total_sc}...",
                             {"plan_index": plan_no, "total_plans": total_plans},
                         )
                 elif "Nối các phân cảnh" in core or "concat" in core.lower():
@@ -829,11 +838,11 @@ class VideoCreationPipeline:
                             f"[Plan {plan_no}/{total_plans}] Đang nối các phân cảnh video...",
                             {"plan_index": plan_no, "total_plans": total_plans},
                         )
-                elif "Lồng nhạc nền BGM" in core or "BGM" in core:
+                elif "Render thành phẩm cuối cùng" in core or "Lồng nhạc nền BGM" in core:
                     if on_progress:
                         on_progress(
                             6,
-                            f"[Plan {plan_no}/{total_plans}] Đang hòa trộn nhạc nền BGM...",
+                            f"[Plan {plan_no}/{total_plans}] Đang xuất thành phẩm & hòa trộn BGM...",
                             {"plan_index": plan_no, "total_plans": total_plans},
                         )
                 elif "Anti-Reup" in core:
