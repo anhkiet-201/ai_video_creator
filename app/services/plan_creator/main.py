@@ -112,7 +112,7 @@ def main():
     t_start = time.time()
     try:
         result = engine.create_plans(
-            json_content=content_data,
+            content=content_data,
             num_scripts=args.num_scripts,
             creative_styles=styles[: args.num_scripts],
         )

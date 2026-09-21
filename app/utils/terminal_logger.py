@@ -141,9 +141,15 @@ class TerminalProgressTracker:
     với màu sắc ANSI rực rỡ và chuyên nghiệp.
     """
 
-    def __init__(self, verbose: bool = False, stream: Optional[TextIO] = None):
+    def __init__(
+        self,
+        verbose: bool = False,
+        stream: Optional[TextIO] = None,
+        total_steps: int = 5,
+    ):
         self.verbose = verbose
         self.stream = stream or sys.stdout
+        self.total_steps = total_steps
         self._lock = threading.Lock()
         self._last_line_was_cr = False
 
@@ -159,7 +165,7 @@ class TerminalProgressTracker:
         # 1. Chế độ Verbose: In streaming toàn bộ từng dòng với ký tự xuống dòng \n
         if self.verbose:
             with self._lock:
-                step_tag = f"{Colors.BOLD_MAGENTA}[Step {step}/6]{Colors.RESET}"
+                step_tag = f"{Colors.BOLD_MAGENTA}[Step {step}/{self.total_steps}]{Colors.RESET}"
                 self.stream.write(f"{step_tag} {message}\n")
                 self.stream.flush()
                 self._last_line_was_cr = False
@@ -201,10 +207,10 @@ class TerminalProgressTracker:
 
             elif is_step_completed:
                 # In chốt mốc khi hoàn tất 1 bước lớn
-                step_badge = f"{Colors.BOLD_GREEN}[✓]{Colors.RESET} {Colors.BOLD_MAGENTA}[Step {step}/6]{Colors.RESET}"
+                step_badge = f"{Colors.BOLD_GREEN}[✓]{Colors.RESET} {Colors.BOLD_MAGENTA}[Step {step}/{self.total_steps}]{Colors.RESET}"
                 clean_msg = message
-                if f"[Step {step}/6]" in clean_msg:
-                    clean_msg = clean_msg.replace(f"[Step {step}/6]", "").strip()
+                if f"[Step {step}/{self.total_steps}]" in clean_msg:
+                    clean_msg = clean_msg.replace(f"[Step {step}/{self.total_steps}]", "").strip()
                 line = f"{step_badge} {Colors.BOLD_WHITE}{clean_msg}{Colors.RESET}\n"
 
                 self.stream.write(f"\r\033[K{line}")
@@ -213,13 +219,13 @@ class TerminalProgressTracker:
 
             else:
                 # Đang xử lý dở dang (real-time): in đè bằng \r
-                step_badge = f"{Colors.BOLD_MAGENTA}[Step {step}/6]{Colors.RESET}"
+                step_badge = f"{Colors.BOLD_MAGENTA}[Step {step}/{self.total_steps}]{Colors.RESET}"
                 plan_no = data.get("plan_index")
                 total_plans = data.get("total_plans")
 
                 clean_msg = message
-                if f"[Step {step}/6]" in clean_msg:
-                    clean_msg = clean_msg.replace(f"[Step {step}/6]", "").strip()
+                if f"[Step {step}/{self.total_steps}]" in clean_msg:
+                    clean_msg = clean_msg.replace(f"[Step {step}/{self.total_steps}]", "").strip()
 
                 if plan_no and total_plans and f"[Plan {plan_no}/{total_plans}]" in clean_msg:
                     clean_msg = clean_msg.replace(f"[Plan {plan_no}/{total_plans}]", "").strip()

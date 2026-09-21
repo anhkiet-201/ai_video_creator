@@ -584,9 +584,9 @@ class TestVideoCreationPipeline(unittest.TestCase):
         self.assertEqual(len(result.render_results), 1)
         self.assertEqual(result.render_results[0].output_path, final_mp4)
 
-        # Đảm bảo đã phát sự kiện qua đầy đủ 6 bước
+        # Đảm bảo đã phát sự kiện qua đầy đủ 5 bước
         steps_recorded = {event[0] for event in progress_events}
-        for s in range(1, 7):
+        for s in range(1, 6):
             self.assertIn(s, steps_recorded, f"Thiếu sự kiện của Bước {s}")
 
     def test_overlay_style_resolution(self):
@@ -893,9 +893,9 @@ class TestVideoCreationPipeline(unittest.TestCase):
 
     def test_execute_cleanup_on_error(self):
         """Khi xảy ra lỗi ở bất kỳ bước nào, session_dir vẫn phải được dọn dẹp nếu cleanup_temp=True."""
-        from app.services.content_extractor import ContentExtractorError
+        from app.services.plan_creator.exceptions import PlanCreatorError
 
-        self.mock_extractor.extract.side_effect = ContentExtractorError("Giả lập lỗi bóc tách nội dung")
+        self.mock_plan_creator.create_plans.side_effect = PlanCreatorError("Giả lập lỗi tạo kịch bản thô")
 
         inp = PipelineInput(
             content=self.sample_content,

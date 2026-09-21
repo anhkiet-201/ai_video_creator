@@ -1,8 +1,9 @@
 import json
 import logging
+import random
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from app.services.key_rotator import KeyRotator
 from app.services.plan_creator.constants import VALID_EMOTION_TAGS
@@ -24,6 +25,17 @@ ALLOWED_EMOTIONS: Set[str] = {
     tag.strip("[]").lower() for tag in VALID_EMOTION_TAGS
 }
 
+# Pattern nhận diện emoji và các biểu tượng đồ họa Unicode
+EMOJI_PATTERN = re.compile(
+    r"[\U00010000-\U0010ffff]|[\u2600-\u27bf]|[\u2300-\u23ff]|[\u2b50-\u2b55]|[\ufe00-\ufe0f]|[\u200d]"
+)
+
+# Pattern nhận diện các ký tự đặc biệt không thể phát âm đối với engine TTS
+UNPRONOUNCEABLE_PATTERN = re.compile(r"[*#@~^_|<>/\\=+–—$%`\"'{}()]")
+
+# Import API làm sạch từ khóa nhạy cảm duy nhất từ module sensitive_rules chuyên trách
+from app.services.plan_creator.sensitive_rules import clean_sensitive_text
+
 
 def sanitize_script_tags(
     data: Dict[str, Any],
@@ -39,6 +51,7 @@ def sanitize_script_tags(
     3. Luật tối đa 1 sound-effect trên mỗi script: Nếu có nhiều scene chứa sound-effect, chỉ giữ
        lại thẻ hợp lệ đầu tiên, các scene còn lại sẽ bị loại bỏ thẻ sound-effect.
     4. Thẻ sound-effect hợp lệ luôn được đưa về cuối câu srt_script (LAW 1: POSITION).
+    5. Tuyệt đối không chứa emoji, icon biểu cảm hoặc ký tự đặc biệt không thể phát âm (*, #, @, ~, ^, _, |, etc.).
     """
     if not isinstance(data, dict):
         return data
@@ -68,6 +81,16 @@ def sanitize_script_tags(
             if not isinstance(scene, dict):
                 continue
 
+            # 1. Làm sạch title và sub_title tránh bot OCR quét từ khóa nhạy cảm
+            raw_title = scene.get("title")
+            if isinstance(raw_title, str) and raw_title.strip():
+                scene["title"] = clean_sensitive_text(raw_title, uppercase=True)
+
+            raw_sub_title = scene.get("sub_title")
+            if isinstance(raw_sub_title, str) and raw_sub_title.strip():
+                scene["sub_title"] = clean_sensitive_text(raw_sub_title, uppercase=False)
+
+            # 2. Làm sạch srt_script
             raw_script = scene.get("srt_script")
             if not isinstance(raw_script, str) or not raw_script.strip():
                 continue
@@ -99,9 +122,14 @@ def sanitize_script_tags(
 
             cleaned = bracket_pattern.sub(_filter_tag, raw_script)
 
-            # Chuẩn hóa khoảng trắng và dấu câu
-            cleaned = re.sub(r"\s+([,\.!\?:;\-])", r"\1", cleaned)
-            cleaned = re.sub(r"\s+", " ", cleaned).strip()
+            # Loại bỏ emoji và biểu tượng đồ họa Unicode
+            cleaned = EMOJI_PATTERN.sub(" ", cleaned)
+
+            # Loại bỏ các ký tự đặc biệt không thể phát âm đối với engine TTS
+            cleaned = UNPRONOUNCEABLE_PATTERN.sub(" ", cleaned)
+
+            # 3. Làm sạch toàn bộ từ khóa nhạy cảm qua API duy nhất clean_sensitive_text
+            cleaned = clean_sensitive_text(cleaned, uppercase=False)
 
             # Nếu scene được cấp sound-effect hợp lệ, gán ở cuối câu (LAW 1)
             if scene_sfx_filename:
@@ -117,7 +145,7 @@ class PlanCreatorEngine:
     """Engine chuyên lên kịch bản video ngắn từ dữ liệu JSON bằng Gemini AI.
 
     Đặc điểm kiến trúc:
-    - Nhận dữ liệu nội dung đầu vào (json_content) và số lượng kịch bản mong muốn (num_scripts).
+    - Nhận dữ liệu nội dung đầu vào (content) và số lượng kịch bản mong muốn (num_scripts).
     - Tự động xoay vòng API Keys qua KeyRotator khi gặp lỗi Quota (429) hoặc mạng.
     - Nhận system_prompt và json_structure linh hoạt theo yêu cầu nghiệp vụ.
     - Trả về danh sách kịch bản chuẩn định dạng JSON, sẵn sàng cấp cho TTS Engine và Render Overlay.
@@ -138,15 +166,15 @@ class PlanCreatorEngine:
 
     def create_plans(
         self,
-        json_content: Union[Dict[str, Any], str],
+        content: Union[Dict[str, Any], str],
         num_scripts: int = 1,
         creative_styles: Optional[List[str]] = None,
         override_config: Optional[PlanCreatorConfig] = None,
     ) -> Dict[str, Any]:
-        """Tạo danh sách các kịch bản video từ dữ liệu JSON content.
+        """Tạo danh sách các kịch bản video từ nội dung văn bản (hoặc JSON) của người dùng.
 
         Args:
-            json_content: Dữ liệu nội dung có cấu trúc (dưới dạng dict hoặc chuỗi JSON).
+            content: Dữ liệu nội dung bài đăng/tin tuyển dụng (chuỗi văn bản hoặc dict).
             num_scripts: Số lượng kịch bản cần tạo (mặc định: 1, phải > 0).
             creative_styles: Danh sách các phong cách/góc tiếp cận tùy chọn (ví dụ: ["Drama", "Hài hước"]).
             override_config: Cấu hình ghi đè nếu muốn thay đổi config lúc gọi hàm.
@@ -155,7 +183,7 @@ class PlanCreatorEngine:
             Dict[str, Any]: Danh sách kịch bản theo đúng cấu trúc JSON mong muốn.
 
         Raises:
-            EmptyContentError: Nếu json_content rỗng hoặc không hợp lệ.
+            EmptyContentError: Nếu nội dung rỗng hoặc không hợp lệ.
             InvalidNumScriptsError: Nếu num_scripts <= 0.
             MissingSystemPromptError: Nếu thiếu system_prompt.
             MissingJsonStructureError: Nếu thiếu cấu trúc json_structure.
@@ -163,14 +191,18 @@ class PlanCreatorEngine:
             JSONParsingError: Nếu AI trả về kết quả không parse được sang JSON.
             PlanCreatorError: Các lỗi hệ thống khác.
         """
+        # 0. Kiểm tra tính hợp lệ ban đầu của content
+        if content is None:
+            raise EmptyContentError("Nội dung đầu vào không được để trống!")
+
         # 1. Guard Clause: Kiểm tra num_scripts
         if not isinstance(num_scripts, int) or num_scripts <= 0:
             raise InvalidNumScriptsError(f"Số lượng kịch bản num_scripts phải là số nguyên dương lớn hơn 0 (nhận được: {num_scripts})")
 
-        # 2. Guard Clause: Kiểm tra tính hợp lệ của json_content
-        content_str = self._serialize_content(json_content)
+        # 2. Guard Clause: Kiểm tra tính hợp lệ của content
+        content_str = self._serialize_content(content)
         if not content_str or not content_str.strip():
-            raise EmptyContentError("Nội dung json_content đầu vào không được để trống!")
+            raise EmptyContentError("Nội dung đầu vào không được để trống!")
 
         # 3. Xác định config áp dụng
         active_config = override_config or self.config
@@ -207,24 +239,17 @@ class PlanCreatorEngine:
         )
 
     def _serialize_content(self, content: Union[Dict[str, Any], str]) -> str:
-        """Chuyển đổi dữ liệu đầu vào thành chuỗi JSON định dạng chuẩn."""
+        """Chuyển đổi dữ liệu đầu vào thành chuỗi nội dung văn bản hoặc chuỗi JSON."""
         if isinstance(content, dict):
             if not content:
                 return ""
             return json.dumps(content, ensure_ascii=False, indent=2)
         if isinstance(content, str):
             stripped = content.strip()
-            if not stripped:
+            if not stripped or stripped in ("{}", "[]"):
                 return ""
-            # Thử parse JSON nếu là string JSON để kiểm tra tính hợp lệ
-            try:
-                parsed = json.loads(stripped)
-                if isinstance(parsed, dict) and not parsed:
-                    return ""
-            except json.JSONDecodeError:
-                pass
             return stripped
-        raise EmptyContentError(f"json_content phải là dict hoặc chuỗi JSON, nhận được: {type(content).__name__}")
+        raise EmptyContentError(f"Nội dung đầu vào phải là chuỗi văn bản hoặc dict, nhận được: {type(content).__name__}")
 
     def _build_prompt_content(
         self,
@@ -327,13 +352,24 @@ class PlanCreatorEngine:
         if match:
             text = match.group(1).strip()
 
+        # Loại bỏ các định dạng comment vô tình phát sinh từ AI (// comment hoặc /* comment */)
+        text = re.sub(r"//.*", "", text)
+        text = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
+
         try:
             parsed = json.loads(text)
-            if not isinstance(parsed, dict):
-                raise JSONParsingError(
-                    f"Dữ liệu JSON trả về phải là một Object (dict), nhận được: {type(parsed).__name__}"
-                )
-            return parsed
-        except (json.JSONDecodeError, JSONParsingError) as e:
-            logger.error(f"Không thể parse JSON từ AI output: {text[:200]}... Lỗi: {e}")
-            raise JSONParsingError(f"Phản hồi từ AI không đúng định dạng JSON hợp lệ: {e}") from e
+        except json.JSONDecodeError:
+            # Thử làm sạch unquoted keys (ví dụ _comment: "...") và trailing commas (, ] hoặc , }) và parse lại
+            cleaned_text = re.sub(r"([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:", r'\1"\2":', text)
+            cleaned_text = re.sub(r",\s*([\]\}])", r"\1", cleaned_text)
+            try:
+                parsed = json.loads(cleaned_text)
+            except Exception as e:
+                logger.error(f"Không thể parse JSON từ AI output: {text[:200]}... Lỗi: {e}")
+                raise JSONParsingError(f"Phản hồi từ AI không đúng định dạng JSON hợp lệ: {e}") from e
+
+        if not isinstance(parsed, dict):
+            raise JSONParsingError(
+                f"Dữ liệu JSON trả về phải là một Object (dict), nhận được: {type(parsed).__name__}"
+            )
+        return parsed

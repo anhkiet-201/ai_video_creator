@@ -48,53 +48,47 @@ Từ một bài viết thô (tin tuyển dụng, bài viết giới thiệu sả
 
 ---
 
-## 🔄 Kiến Trúc Luồng 6 Bước (6-Step Pipeline)
+## 🔄 Kiến Trúc Luồng 5 Bước (5-Step Pipeline)
 
-Hệ thống được điều phối bởi [VideoCreationPipeline](file:///Volumes/aki/workspace/AI_Video_Creator/app/services/pipeline/coordinator.py) theo quy trình 6 bước độc lập, áp dụng chặt chẽ các nguyên lý **SOLID** và **Clean Architecture**:
+Hệ thống được điều phối bởi [VideoCreationPipeline](file:///Volumes/aki/workspace/AI_Video_Creator/app/services/pipeline/coordinator.py) theo quy trình 5 bước độc lập, áp dụng chặt chẽ các nguyên lý **SOLID** và **Clean Architecture**:
 
 ```mermaid
 flowchart TD
     subgraph S1["Bước 1: Validation & Media Scanner"]
-        A[Nội Dung Văn Bản] --> P1[Quét & Kiểm Tra Hợp Lệ]
+        A[Nội Dung Văn Bản Từ User] --> P1[Quét & Kiểm Tra Hợp Lệ]
         B[Thư Mục B-Roll / Ảnh / Video] --> P1
     end
 
-    subgraph S2["Bước 2: Content Extractor"]
-        P1 --> P2[Trích Xuất Thông Tin Cốt Lõi]
-        G1[Google Gemini 2.5 Flash] <--> P2
+    subgraph S2["Bước 2: Plan Creator (Gemini AI)"]
+        P1 --> P2[Nhận Trực Tiếp Raw Text & Lên Kịch Bản Thô]
+        G1[Google Gemini AI] <--> P2
         KR[KeyRotator Tự Động Failover] -.-> G1
     end
 
-    subgraph S3["Bước 3: Plan Creator"]
-        P2 --> P3[Sinh Kịch Bản Thô RoughScripts]
-        G2[Gemini Creative Engine] <--> P3
+    subgraph S3["Bước 3: Asset Generation"]
+        P2 --> P3[Tạo Tài Nguyên Đồ Họa & Âm Thanh]
+        P3 -->|VieNeu-TTS Engine| TTS[Audio .wav 48kHz & Thời Lượng Thực]
+        P3 -->|Render Overlay Engine| OVL[Ảnh PNG 32-bit Trong Suốt]
     end
 
-    subgraph S4["Bước 4: Asset Generation"]
-        P3 --> P4[Tạo Tài Nguyên Đồ Họa & Âm Thanh]
-        P4 -->|VieNeu-TTS Engine| TTS[Audio .wav 48kHz & Thời Lượng Thực]
-        P4 -->|Render Overlay Engine| OVL[Ảnh PNG 32-bit Trong Suốt]
+    subgraph S4["Bước 4: Detailed Plan Creator"]
+        TTS --> P4[Khớp Chính Xác Audio + Overlay + B-Roll Clips]
+        OVL --> P4
     end
 
-    subgraph S5["Bước 5: Detailed Plan Creator"]
-        TTS --> P5[Khớp Chính Xác Audio + Overlay + B-Roll Clips]
-        OVL --> P5
-    end
-
-    subgraph S6["Bước 6: Video Render Engine"]
-        P5 --> P6[Render Video Hoàn Phẩm Đa Luồng]
-        AR[Anti-Reup Engine] -.-> P6
-        FF[FFmpeg Engine Multi-threads] <--> P6
-        BGM[Nhạc Nền BGM Loop & Ducking] -.-> P6
-        P6 --> OUT[🎬 Video Hoàn Thiện 1080x1920 MP4]
+    subgraph S5["Bước 5: Video Render Engine"]
+        P4 --> P5[Render Video Hoàn Phẩm Đa Luồng]
+        AR[Anti-Reup Engine] -.-> P5
+        FF[FFmpeg Engine Multi-threads] <--> P5
+        BGM[Nhạc Nền BGM Loop & Ducking] -.-> P5
+        P5 --> OUT[🎬 Video Hoàn Thiện 1080x1920 MP4]
     end
 
     style S1 fill:#e1f5fe,stroke:#0288d1
-    style S2 fill:#ede7f6,stroke:#7e57c2
-    style S3 fill:#e8f5e9,stroke:#388e3c
-    style S4 fill:#fff3e0,stroke:#f57c00
-    style S5 fill:#fce4ec,stroke:#c2185b
-    style S6 fill:#e0f2f1,stroke:#00796b
+    style S2 fill:#e8f5e9,stroke:#388e3c
+    style S3 fill:#fff3e0,stroke:#f57c00
+    style S4 fill:#fce4ec,stroke:#c2185b
+    style S5 fill:#e0f2f1,stroke:#00796b
     style OUT fill:#ffeb3b,stroke:#fbc02d,stroke-width:2px
 ```
 
@@ -102,9 +96,9 @@ flowchart TD
 
 ## 🚀 Tính Năng Đột Phá
 
-### 1. Trích Xuất Thông Tin & Xoay Vòng Gemini API Key
+### 1. Truyền Trực Tiếp Input & Xoay Vòng Gemini API Key
 - Module [KeyRotator](file:///Volumes/aki/workspace/AI_Video_Creator/app/services/key_rotator.py) tự động phân bổ và xoay vòng nhiều API keys. Khi gặp lỗi **HTTP 429 (Resource Exhausted / Quota Exceeded)**, hệ thống lập tức đánh dấu lỗi và chuyển sang key dự phòng tiếp theo mà không làm gián đoạn pipeline.
-- [ContentExtractorEngine](file:///Volumes/aki/workspace/AI_Video_Creator/app/services/content_extractor/engine.py) bóc tách có cấu trúc JSON đầy đủ về các quyền lợi thực tế, công việc, địa điểm và lưu ý quan trọng.
+- [PlanCreatorEngine](file:///Volumes/aki/workspace/AI_Video_Creator/app/services/plan_creator/engine.py) tiếp nhận trực tiếp bài đăng/nội dung thô từ người dùng, lược bỏ bước trích xuất trung gian giúp tiết kiệm 50% thời gian gọi AI và bảo toàn 100% ngữ cảnh gốc.
 
 ### 2. Kịch Bản Review Chân Thực & Thẻ Cảm Xúc Âm Thanh
 - [PlanCreatorEngine](file:///Volumes/aki/workspace/AI_Video_Creator/app/services/plan_creator/engine.py) được trang bị Prompt thiết kế riêng cho việc sáng tạo video ngắn:

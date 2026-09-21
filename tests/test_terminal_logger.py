@@ -114,12 +114,12 @@ class TestTerminalLogger(unittest.TestCase):
         tracker = TerminalProgressTracker(verbose=True, stream=stream)
 
         tracker.on_progress(1, "Bước 1: Đang thẩm định dữ liệu đầu vào...")
-        tracker.on_progress(2, "Bước 2: Đang bóc tách thông tin...")
+        tracker.on_progress(2, "Bước 2: Đang lên kịch bản thô...")
 
         lines = stream.getvalue().strip().split("\n")
         self.assertEqual(len(lines), 2)
-        self.assertEqual(strip_ansi(lines[0]), "[Step 1/6] Bước 1: Đang thẩm định dữ liệu đầu vào...")
-        self.assertEqual(strip_ansi(lines[1]), "[Step 2/6] Bước 2: Đang bóc tách thông tin...")
+        self.assertEqual(strip_ansi(lines[0]), "[Step 1/5] Bước 1: Đang thẩm định dữ liệu đầu vào...")
+        self.assertEqual(strip_ansi(lines[1]), "[Step 2/5] Bước 2: Đang lên kịch bản thô...")
 
     def test_cli_verbose_and_verbor_flags(self):
         """Kiểm tra parser của main.py nhận diện chuẩn cờ --verbose, --verbor và -v."""

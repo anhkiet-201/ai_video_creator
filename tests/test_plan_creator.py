@@ -240,7 +240,7 @@ def test_create_plans_success():
 
     with patch("google.genai.Client", return_value=mock_client):
         result = engine.create_plans(
-            json_content=SAMPLE_CONTENT,
+            content=SAMPLE_CONTENT,
             num_scripts=3,
             creative_styles=["Drama", "Flex", "Review"]
         )
@@ -251,18 +251,79 @@ def test_create_plans_success():
     print("-> PASS: test_create_plans_success")
 
 
+def test_raw_user_input_content():
+    """Kiểm tra PlanCreatorEngine tiếp nhận trực tiếp chuỗi văn bản thô (raw text) từ người dùng."""
+    config = PlanCreatorConfig(
+        api_keys=["valid-key"],
+        system_prompt="Prompt test",
+        json_structure=SAMPLE_STRUCTURE,
+    )
+    engine = PlanCreatorEngine(config)
+
+    raw_user_posting = (
+        "Tuyển nhân viên đóng gói tại KCN VSIP 2A Bình Dương. "
+        "Yêu cầu đủ 18 tuổi trở lên, mang theo căn cước công dân phô tô nhận việc ngay. "
+        "Giờ làm 8 tiếng rõ ràng, hỗ trợ cơm trưa, phụ cấp chuyên cần đầy đủ."
+    )
+
+    expected_output = {
+        "total_scripts": 1,
+        "scripts": [
+            {
+                "script_id": 1,
+                "title": "KCN VSIP 2A",
+                "scenes": [
+                    {
+                        "scene_index": 0,
+                        "title": "ĐÓNG GÓI VSIP 2A",
+                        "srt_script": "Bây ơi bây xem chỗ này nè nha.",
+                        "transition": "fade",
+                    }
+                ],
+            }
+        ],
+    }
+
+    mock_client = MagicMock()
+    mock_resp = MagicMock()
+    mock_resp.text = json.dumps(expected_output)
+    mock_client.models.generate_content.return_value = mock_resp
+
+    with patch("google.genai.Client", return_value=mock_client):
+        # Test truyền qua tham số 'content' với raw text
+        res1 = engine.create_plans(content=raw_user_posting, num_scripts=1)
+        assert res1["total_scripts"] == 1
+        assert len(res1["scripts"]) == 1
+
+        # Kiểm tra nội dung prompt gửi cho Gemini chứa chính xác raw text của user
+        call_args = mock_client.models.generate_content.call_args
+        sent_contents = call_args.kwargs.get("contents") or (call_args.args[1] if len(call_args.args) > 1 else "")
+        assert "KCN VSIP 2A Bình Dương" in str(sent_contents)
+
+    print("-> PASS: test_raw_user_input_content")
+
+
 def test_user_prompt_template_and_sync():
-    """Kiểm tra tính năng template hóa user prompt và đồng bộ hóa giữa các prompt."""
+    """Kiểm tra tính năng template hóa user prompt và đồng bộ hóa giữa các prompt theo 5 trụ cột."""
     from app.services.plan_creator.constants import (
         DEFAULT_SYSTEM_PROMPT,
         DEFAULT_USER_PROMPT_TEMPLATE,
     )
 
-    # 1. Kiểm tra System Prompt chứa đầy đủ các nguyên tắc cốt lõi (Single Source of Truth)
+    # 1. Kiểm tra System Prompt chứa đầy đủ 5 trụ cột và các nguyên tắc cốt lõi
     system_core_keywords = [
+        "PILLAR 1",
+        "ROLE & PERSONA",
+        "PILLAR 2",
+        "TARGET AUDIENCE",
+        "PILLAR 3",
+        "OBJECTIVES",
+        "PILLAR 4",
+        "RULES & CONSTRAINTS",
+        "PILLAR 5",
+        "SCRIPT STRUCTURE",
         "zero hallucination",
-        "4 scenes",
-        "salary",
+        "5 to 7 scenes",
         "[cười]",
         "[chuckle]",
         "[thở dài]",
@@ -271,17 +332,13 @@ def test_user_prompt_template_and_sync():
         "[clear throat]",
         "transition",
         "FFmpeg xfade",
-        "tao - bay",
-        "Ủa alo tin nổi hông",
-        "colloquial Vietnamese",
         "58",
         "ZERO TAG HALLUCINATION",
-        "Phonetic Transcription",
-        "vi-đê-ô",
-        "síp-pơ",
-        "Abbreviation Expansion",
-        "khu công nghiệp",
-        "KCN",
+        "Phonetic",
+        "Abbreviation",
+        "zero emojis",
+        "unpronounceable",
+        "accented vietnamese",
     ]
     for kw in system_core_keywords:
         assert kw.lower() in DEFAULT_SYSTEM_PROMPT.lower(), f"Thiếu keyword '{kw}' trong DEFAULT_SYSTEM_PROMPT"
@@ -293,9 +350,11 @@ def test_user_prompt_template_and_sync():
         "{styles_instruction}",
         "{sound_effects_instruction}",
         "{schema_repr}",
-        "System Prompt",
         "zero hallucination",
         "phonetic",
+        "zero emojis",
+        "5-pillar",
+        "accented vietnamese",
     ]
     for elem in user_template_required_elements:
         assert elem.lower() in DEFAULT_USER_PROMPT_TEMPLATE.lower(), f"Thiếu thành phần '{elem}' trong DEFAULT_USER_PROMPT_TEMPLATE"
@@ -367,91 +426,48 @@ def test_ffmpeg_transitions_completeness():
 
 
 def test_platform_policy_compliance_and_slang_rules():
-    """Kiểm tra sự hiện diện đầy đủ của 3 chính sách kiểm duyệt nội dung (từ lóng, cấm chuyển hướng, chống phóng đại)."""
+    """Kiểm tra sự hiện diện đầy đủ của các rào chắn kiểm duyệt nền tảng (Policy Firewalls) theo 5 trụ cột."""
     from app.services.plan_creator.constants import (
         DEFAULT_SYSTEM_PROMPT,
         DEFAULT_USER_PROMPT_TEMPLATE,
     )
 
-    # 1. Kiểm tra Policy 1: Banned words & Ethical replacements
-    policy_1_keywords = [
-        "thành quả xứng đáng",
-        "khoản bồi dưỡng",
-        "phúc lợi chu đáo",
-        "khoản hỗ trợ",
-        "đủ tuổi lao động",
-        "từ 18 trở lên",
-        "giấy tờ tùy thân",
-        "tất cả mọi người",
-        "CCCD",
-        "VNeID",
-        "chuyển khoản",
-        "tài khoản",
-        "lương",
-        "tiền",
-        "bạc",
+    # 1. Kiểm tra Policy 1: Banned concepts (Không phân biệt giới tính, độ tuổi, không PII/thủ tục)
+    policy_1_concepts = [
+        "zero gender",
+        "zero age",
+        "omit all pii",
+        "personal paperwork",
+        "instant money",
+        "scam",
     ]
-    for kw in policy_1_keywords:
-        assert kw.lower() in DEFAULT_SYSTEM_PROMPT.lower(), f"Thiếu keyword từ vựng/cấm '{kw}' trong DEFAULT_SYSTEM_PROMPT"
+    for concept in policy_1_concepts:
+        assert concept.lower() in DEFAULT_SYSTEM_PROMPT.lower(), f"Thiếu concept cấm '{concept}' trong DEFAULT_SYSTEM_PROMPT"
 
-    # 2. Kiểm tra Policy 2: Zero off-platform traffic redirection trong System Prompt (Source of Truth)
-    policy_2_keywords = [
-        "ứng tuyển",
-        "liên hệ",
-        "nhắn tin",
-        "inbox",
+    # 2. Kiểm tra Policy 2: Cấm điều hướng và vũ khí
+    policy_2_concepts = [
+        "safe peer redirection",
+        "weapon",
+        "firearms",
     ]
-    for kw in policy_2_keywords:
-        assert kw.lower() in DEFAULT_SYSTEM_PROMPT.lower(), f"Thiếu keyword cấm điều hướng '{kw}' trong DEFAULT_SYSTEM_PROMPT"
+    for concept in policy_2_concepts:
+        assert concept.lower() in DEFAULT_SYSTEM_PROMPT.lower(), f"Thiếu concept cấm '{concept}' trong DEFAULT_SYSTEM_PROMPT"
 
-    # Kiểm tra bộ từ vựng CTA mới (Comment, Peer-sharing, Bio, Review)
-    new_cta_keywords = [
-        "thả nhẹ chiếc cmt",
-        "tag nhẹ",
-        "bio đầu kênh",
-        "review dưới bình luận",
-    ]
-    for kw in new_cta_keywords:
-        assert kw.lower() in DEFAULT_SYSTEM_PROMPT.lower(), f"Thiếu keyword CTA mới '{kw}' trong DEFAULT_SYSTEM_PROMPT"
-
-    # 3. Kiểm tra Policy 3: Zero hyperbole / over-promising / urgency trong System Prompt (Source of Truth)
-    policy_3_keywords = [
-        "gấp",
-        "tuyển gấp",
-        "cần gấp",
-        "100%",
-        "đảm bảo",
-        "chắc chắn",
-        "cam kết",
-    ]
-    for kw in policy_3_keywords:
-        assert kw.lower() in DEFAULT_SYSTEM_PROMPT.lower(), f"Thiếu keyword chống phóng đại '{kw}' trong DEFAULT_SYSTEM_PROMPT"
-
-    # Kiểm tra bộ từ vựng Tính cấp bách mới (Slot scarcity, Real rhythm)
-    new_urgency_keywords = [
-        "cơ hội tốt số lượng có hạn",
-        "slot cuối",
-        "chốt sổ",
-        "thủ tục gọn gàng",
-        "làm việc ngay",
-    ]
-    for kw in new_urgency_keywords:
-        assert kw.lower() in DEFAULT_SYSTEM_PROMPT.lower(), f"Thiếu keyword cấp bách mới '{kw}' trong DEFAULT_SYSTEM_PROMPT"
-
-    # 4. Kiểm tra Policy 4: Anti-Verbatim & Creative Angles (Chống rập khuôn, kích thích sáng tạo)
-    creative_keywords = [
+    # 3. Kiểm tra Policy 3: Chống phóng đại & chuẩn mực ngôn từ đời thường
+    policy_3_concepts = [
+        "anti-hyperbole",
+        "administrative",
+        "corporate bulletin",
         "anti-verbatim",
-        "creative angles",
-        "zero cross-script repetition",
-        "illustrative examples",
     ]
-    for kw in creative_keywords:
-        assert kw.lower() in DEFAULT_SYSTEM_PROMPT.lower(), f"Thiếu keyword sáng tạo/anti-verbatim '{kw}' trong DEFAULT_SYSTEM_PROMPT"
+    for concept in policy_3_concepts:
+        assert concept.lower() in DEFAULT_SYSTEM_PROMPT.lower(), f"Thiếu concept phong cách '{concept}' trong DEFAULT_SYSTEM_PROMPT"
 
-    # Kiểm tra User Prompt tham chiếu tuân thủ các policy trên
-    assert "System Prompt" in DEFAULT_USER_PROMPT_TEMPLATE
-    assert "lexicon replacements" in DEFAULT_USER_PROMPT_TEMPLATE
-    assert "blindly copy" in DEFAULT_USER_PROMPT_TEMPLATE.lower()
+    # 4. Kiểm tra User Prompt tham chiếu tuân thủ 5-Pillar instructions
+    assert "5-pillar" in DEFAULT_USER_PROMPT_TEMPLATE.lower()
+    assert "zero hallucination" in DEFAULT_USER_PROMPT_TEMPLATE.lower()
+    assert "zero gender" in DEFAULT_USER_PROMPT_TEMPLATE.lower()
+    assert "zero age" in DEFAULT_USER_PROMPT_TEMPLATE.lower()
 
     print("-> PASS: test_platform_policy_compliance_and_slang_rules")
 
@@ -550,6 +566,159 @@ def test_sanitize_script_tags_enforces_whitelist_and_removes_hallucinated_tags()
     print("-> PASS: test_sanitize_script_tags_enforces_whitelist_and_removes_hallucinated_tags")
 
 
+def test_sanitize_script_tags_removes_emojis_and_unpronounceable_chars():
+    """Kiểm tra sanitize_script_tags loại bỏ sạch sẽ mọi emoji và ký tự đặc biệt không thể phát âm."""
+    from app.services.plan_creator.engine import sanitize_script_tags
+
+    mock_ai_output = {
+        "total_scripts": 1,
+        "scripts": [
+            {
+                "script_id": 1,
+                "scenes": [
+                    {
+                        "scene_index": 1,
+                        # Chứa nhiều emoji (🔥, 👍, 😊, 🚀, ❤️) và ký tự rác (*, #, @, ~, ^, _, |, <, >)
+                        "srt_script": "Bây ơi bây 🔥 xem chỗ này nè nha! 👍 #tuyenviec *cực hot* ~đỉnh~ @team [cười] phô-tô và vi-đê-ô.",
+                    },
+                    {
+                        "scene_index": 2,
+                        # Chứa ngoặc đơn, gạch dưới, dấu bằng và icon
+                        "srt_script": "Lương tháng ổn áp (rất chuẩn chỉ) _chuẩn_ 100% = ngon lành 🌟 [thở dài].",
+                    },
+                ],
+            }
+        ],
+    }
+
+    sanitized = sanitize_script_tags(mock_ai_output)
+    s1_text = sanitized["scripts"][0]["scenes"][0]["srt_script"]
+    s2_text = sanitized["scripts"][0]["scenes"][1]["srt_script"]
+
+    # 1. Kiểm tra không còn emoji
+    for emoji_char in ["🔥", "👍", "😊", "🚀", "❤️", "🌟"]:
+        assert emoji_char not in s1_text, f"Emoji {emoji_char} chưa bị loại bỏ khỏi srt_script!"
+        assert emoji_char not in s2_text, f"Emoji {emoji_char} chưa bị loại bỏ khỏi srt_script!"
+
+    # 2. Kiểm tra không còn ký tự đặc biệt rác
+    for special_char in ["*", "#", "@", "~", "^", "_", "|", "=", "(", ")"]:
+        assert special_char not in s1_text, f"Ký tự đặc biệt {special_char} chưa bị loại bỏ!"
+        assert special_char not in s2_text, f"Ký tự đặc biệt {special_char} chưa bị loại bỏ!"
+
+    # 3. Kiểm tra các từ ngữ, dấu câu ngắt nghỉ tự nhiên và từ ghép phiên âm được bảo tồn
+    assert "Bây ơi bây xem chỗ này nè nha!" in s1_text
+    assert "tuyenviec cực hot đỉnh team [cười] phô-tô và vi-đê-ô." in s1_text
+    assert "Lương tháng ổn áp rất chuẩn chỉ chuẩn 100 ngon lành [thở dài]." in s2_text
+
+    print("-> PASS: test_sanitize_script_tags_removes_emojis_and_unpronounceable_chars")
+
+
+def test_sanitize_script_tags_removes_gun_and_sensitive_words():
+    """Kiểm tra sanitize_script_tags tự động loại bỏ từ 'súng', 'cày cuốc', 'xoay vòng vốn' và chuẩn hóa an toàn."""
+    from app.services.plan_creator.engine import sanitize_script_tags
+
+    mock_data = {
+        "total_scripts": 1,
+        "scripts": [
+            {
+                "script_id": 1,
+                "scenes": [
+                    {
+                        "scene_index": 1,
+                        "title": "ƯU TIÊN BẮN SÚNG VÍT",
+                        "sub_title": "Nam nữ biết sử dụng súng vít nhận việc ngay",
+                        "srt_script": "Ai có tay nghề bắn súng vít cực đỉnh thì ứng tuyển ngay, công ty đang tuyển dụng cần thợ nhận thiếu tháng từ 2008, lương lđpt 240k ngày công và 40 nghìn tăng ca, ai thích cày cuốc để xoay vòng vốn thoải mái nha.",
+                    }
+                ],
+            }
+        ],
+    }
+
+    sanitized = sanitize_script_tags(mock_data)
+    scene = sanitized["scripts"][0]["scenes"][0]
+
+    # Kiểm tra title không còn 'súng'
+    assert "SÚNG" not in scene["title"], f"Từ 'SÚNG' vẫn còn trong title: {scene['title']}"
+    assert any(word in scene["title"] for word in ["BẮN VÍT", "SIẾT VÍT"]), f"Kỳ vọng BẮN VÍT hoặc SIẾT VÍT trong title, nhận được: {scene['title']}"
+
+    # Kiểm tra sub_title không còn 'súng'
+    assert "súng" not in scene["sub_title"].lower(), f"Từ 'súng' vẫn còn trong sub_title: {scene['sub_title']}"
+
+    # Kiểm tra srt_script không còn 'súng', 'cày cuốc', 'xoay vòng vốn', 'ứng tuyển', 'tuyển dụng', 'vào việc ngay', '2008', 'nghìn', 'ngàn', 'k'
+    srt_text = scene["srt_script"]
+    assert "súng" not in srt_text.lower(), f"Từ 'súng' vẫn còn trong srt_script: {srt_text}"
+    assert "bắn vít" in srt_text.lower(), f"Kỳ vọng 'bắn vít' trong srt_script: {srt_text}"
+    assert "cày cuốc" not in srt_text.lower(), f"Từ 'cày cuốc' vẫn còn trong srt_script: {srt_text}"
+    assert "xoay vòng vốn" not in srt_text.lower(), f"Từ 'xoay vòng vốn' vẫn còn trong srt_script: {srt_text}"
+    assert "ứng tuyển" not in srt_text.lower(), f"Từ 'ứng tuyển' vẫn còn trong srt_script: {srt_text}"
+    assert "tuyển dụng" not in srt_text.lower(), f"Từ 'tuyển dụng' vẫn còn trong srt_script: {srt_text}"
+    assert "vào việc ngay" not in srt_text.lower(), f"Cụm từ 'vào việc ngay' không nên xuất hiện: {srt_text}"
+    assert "nhận việc" in srt_text.lower(), f"Kỳ vọng 'nhận việc' trong srt_script: {srt_text}"
+    assert "tìm người" in srt_text.lower(), f"Kỳ vọng 'tìm người' trong srt_script: {srt_text}"
+    assert "2008" not in srt_text, f"Năm sinh 2008 vẫn còn trong srt_script: {srt_text}"
+    assert "nghìn" not in srt_text.lower(), f"Từ 'nghìn' chưa được chuyển sang 'cành': {srt_text}"
+    assert "ngàn" not in srt_text.lower(), f"Từ 'ngàn' chưa được chuyển sang 'cành': {srt_text}"
+    assert "240k" not in srt_text.lower(), f"Cụm '240k' chưa được chuyển sang '240 cành': {srt_text}"
+    assert "240 cành" in srt_text.lower(), f"Kỳ vọng '240 cành' trong srt_script: {srt_text}"
+    assert "40 cành" in srt_text.lower(), f"Kỳ vọng '40 cành' trong srt_script: {srt_text}"
+
+    print("-> PASS: test_sanitize_script_tags_removes_gun_and_sensitive_words")
+
+
+def test_sensitive_rules_module_and_random_choice():
+    """Kiểm tra tính toàn vẹn của module sensitive_rules với duy nhất 1 Dict SENSITIVE_REPLACEMENTS và 1 hàm clean_sensitive_text."""
+    from app.services.plan_creator.sensitive_rules import (
+        SENSITIVE_REPLACEMENTS,
+        clean_sensitive_text,
+    )
+    from app.services.plan_creator import (
+        SENSITIVE_REPLACEMENTS as EXPORTED_REPLACEMENTS,
+        clean_sensitive_text as exported_clean_sensitive_text,
+    )
+
+    # Đảm bảo re-export đúng
+    assert SENSITIVE_REPLACEMENTS is EXPORTED_REPLACEMENTS
+    assert clean_sensitive_text is exported_clean_sensitive_text
+
+    # Kiểm tra cấu trúc Dict[Tuple[str, ...], List[str]] duy nhất
+    assert isinstance(SENSITIVE_REPLACEMENTS, dict)
+    for patterns, replacements in SENSITIVE_REPLACEMENTS.items():
+        assert isinstance(patterns, tuple), f"Key phải là tuple regex: {patterns}"
+        assert isinstance(replacements, list), f"Value phải là list từ thay thế: {replacements}"
+        assert len(patterns) > 0
+
+    # Kiểm tra clean_sensitive_text (API duy nhất)
+    from app.services.plan_creator.sensitive_rules import clean_sensitive_text
+    
+    # 1. Quy tắc chỉ cần xóa từ súng (áp dụng cho mọi trường hợp súng, súng vít, súng đinh...)
+    assert clean_sensitive_text("Bắn súng vít chuyên nghiệp") == "Bắn vít chuyên nghiệp"
+    assert clean_sensitive_text("Thao tác bắn súng") == "Thao tác bắn"
+    assert clean_sensitive_text("Dùng súng vít để làm") == "Dùng vít để làm"
+    assert clean_sensitive_text("Dùng súng bắn đinh") == "Dùng bắn đinh"
+    assert clean_sensitive_text("Cầm súng đi làm") == "Cầm đi làm"
+
+    # 2. Quy tắc năm sinh & thiếu tháng
+    assert clean_sensitive_text("Nhận thiếu tháng từ 2008") == "tất cả anh em"
+    assert "2008" not in clean_sensitive_text("Sinh năm 2008 hoặc 2k8")
+    assert "2k8" not in clean_sensitive_text("Sinh năm 2008 hoặc 2k8")
+
+    # 3. Quy tắc tiền tệ & mức lương tự nhiên (không từ ngữ ngô nghê hay cờ bạc)
+    assert clean_sensitive_text("Lương 240k ngày công") == "lúa 240 cành ngày công"
+    assert clean_sensitive_text("Tăng ca 40 nghìn một giờ") == "Tăng ca 40 cành một giờ"
+    assert clean_sensitive_text("Tiền tăng ca 40 nghìn một giờ") == "lúa tăng ca 40 cành một giờ"
+    assert clean_sensitive_text("Lương 200 ngàn") == "lúa 200 cành"
+    # 4. Quy tắc Title Safeguard: Cấm triệt để từ giật tít tiền bạc / lúa / lương trên tiêu đề video
+    t1 = clean_sensitive_text("LÃNH LƯƠNG 3 NGÀY 1 LẦN", uppercase=True)
+    assert "LÚA" not in t1 and "LƯƠNG" not in t1 and "TIỀN" not in t1
+    assert "CÔNG VIỆC" in t1 or "VIỆC LÀM" in t1
+
+    t2 = clean_sensitive_text("LỊCH TRẢ LƯƠNG ĐỀU ĐẶN", uppercase=True)
+    assert "LÚA" not in t2 and "LƯƠNG" not in t2 and "TIỀN" not in t2
+    assert "CÔNG VIỆC" in t2 or "VIỆC LÀM" in t2
+
+    print("-> PASS: test_sensitive_rules_module_and_random_choice")
+
+
 if __name__ == "__main__":
     test_invalid_num_scripts()
     test_empty_content_raises_empty_content_error()
@@ -558,11 +727,15 @@ if __name__ == "__main__":
     test_clean_and_parse_json()
     test_key_rotation_on_failure()
     test_create_plans_success()
+    test_raw_user_input_content()
     test_user_prompt_template_and_sync()
     test_ffmpeg_transitions_completeness()
     test_platform_policy_compliance_and_slang_rules()
     test_valid_emotion_tags_and_strict_whitelist()
     test_sanitize_script_tags_enforces_whitelist_and_removes_hallucinated_tags()
+    test_sanitize_script_tags_removes_emojis_and_unpronounceable_chars()
+    test_sanitize_script_tags_removes_gun_and_sensitive_words()
+    test_sensitive_rules_module_and_random_choice()
     print("\n==================================================")
     print(" TOÀN BỘ UNIT TESTS CỦA PLAN CREATOR ĐÃ VƯỢT QUA! ")
     print("==================================================")

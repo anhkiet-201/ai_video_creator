@@ -101,10 +101,10 @@ def format_sound_effects_for_prompt(
 
     lines.append(
         "\nSOUND EFFECT TAG USAGE RULES:\n"
-        "1. Contextual Selection: Inspect the '<Usage Description>' part of each filename to decide which scene it best reinforces.\n"
-        "2. Strict Frequency Limit: Maximum 1 or 2 sound effects per script (at least 2-3 scenes must have NO sound effect). Never spam every scene.\n"
-        "3. Strict Placement: The tag [sound-effect:<exact filename>] MUST ALWAYS BE PLACED AT THE VERY END OF THE SENTENCE in 'srt_script' (CUỐI CÂU).\n"
-        "   Example: 'Thưởng nóng 2 triệu nhận liền tay ngay tuần đầu nha mấy bà! [sound-effect:Ding - Highlight Key Benefit.mp3]'"
+        "1. Contextual & Non-Formulaic Selection: Inspect the '<Usage Description>' of each file. Choose an effect that authentically matches the scene's specific narrative moment (e.g., sharing a clever tip, a dramatic turning point, confirming honest facts, or a warm closing). STRICTLY FORBIDDEN to lazily default to the same sound across scripts.\n"
+        "2. Optional & Dynamic Placement: Sound effects are optional highlights, NOT a mechanical requirement. When used, place the effect where the real dramatic climax occurs (Scene 1, a middle turning point, or the closing outro). Do not mechanically place it in the same scene across all scripts.\n"
+        "3. Strict Frequency Limit: Maximum 1 sound effect per script. Most scenes must have NO sound effect to maintain natural human storytelling pacing.\n"
+        "4. Strict Placement: When used, the tag [sound-effect:<exact filename>] must always be placed at the very end of the scene's 'srt_script'."
     )
 
     return "\n".join(lines)

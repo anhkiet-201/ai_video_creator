@@ -1,12 +1,11 @@
 """Video Creation Pipeline Coordinator.
 
-Điều phối luồng sản xuất video tự động 6 bước tuân thủ Clean Architecture & SOLID:
+Điều phối luồng sản xuất video tự động 5 bước tuân thủ Clean Architecture & SOLID:
 1. Nhận Content & Video Source Path (Input & Validation)
-2. Trích xuất thông tin có cấu trúc bằng Gemini AI (Content Extractor)
-3. Lên kịch bản thô (Plan Creator)
-4. Render Overlay PNG 32-bit & Audio TTS WAV (Render Overlay & TTS Engine)
-5. Lên kịch bản chi tiết VideoRenderPlan (chứa overlay_path, audio_path, duration)
-6. Render video thành phẩm MP4 (Video Render Engine + MacOSVideoRenderer)
+2. Lên kịch bản thô bằng Gemini AI từ nội dung người dùng (Plan Creator)
+3. Render Overlay PNG 32-bit & Audio TTS WAV (Render Overlay & TTS Engine)
+4. Lên kịch bản chi tiết VideoRenderPlan (chứa overlay_path, audio_path, duration)
+5. Render video thành phẩm MP4 (Video Render Engine + MacOSVideoRenderer)
 """
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -133,7 +132,7 @@ class VideoCreationPipeline:
         video_render_engine: Optional[VideoRenderEngine] = None,
     ):
         """Dependency Injection: Khởi tạo với các engine chuyên biệt hoặc tạo mặc định."""
-        self.content_extractor = content_extractor or ContentExtractorEngine()
+        self.content_extractor = content_extractor  # [Deprecated] Giữ tương thích ngược
         self.plan_creator = plan_creator or PlanCreatorEngine()
         self.render_overlay_engine = render_overlay_engine or RenderOverlayEngine()
         self.tts_engine = tts_engine or TTSEngine()
@@ -257,54 +256,20 @@ class VideoCreationPipeline:
         }
 
     # -------------------------------------------------------------------------
-    # BƯỚC 2: TRÍCH XUẤT THÔNG TIN (CONTENT EXTRACTION)
+    # BƯỚC 2: LÊN KỊCH BẢN THÔ (ROUGH SCRIPT CREATION TỪ NỘI DUNG NGƯỜI DÙNG)
     # -------------------------------------------------------------------------
-    def step_2_extract_content(
+    def step_2_create_rough_scripts(
         self,
-        content: str,
-        api_keys: List[str],
-        model_name: str = "gemini-3.5-flash-lite",
-        on_progress: Optional[ProgressCallback] = None,
-    ) -> Dict[str, Any]:
-        """Bước 2: Sử dụng ContentExtractorEngine để bóc tách thông tin có cấu trúc."""
-        if on_progress:
-            on_progress(2, "Bước 2: Đang bóc tách thông tin có cấu trúc bằng Gemini AI...", None)
-
-        config = ContentExtractorConfig(
-            model_name=model_name,
-            api_keys=api_keys,
-            system_prompt=DEFAULT_EXTRACTOR_SYSTEM_PROMPT,
-            json_structure=DEFAULT_EXTRACTOR_JSON_STRUCTURE,
-            temperature=0.2,
-        )
-
-        try:
-            extracted_data = self.content_extractor.extract(
-                content=content,
-                override_config=config,
-            )
-            logger.info(f"[Bước 2] Bóc tách nội dung thành công: {list(extracted_data.keys())}")
-            if on_progress:
-                on_progress(2, "Bước 2: Bóc tách thông tin thành công!", {"extracted_data": extracted_data})
-            return extracted_data
-        except ContentExtractorError as e:
-            raise StepContentExtractionError(f"Lỗi Bước 2 khi trích xuất thông tin: {e}") from e
-
-    # -------------------------------------------------------------------------
-    # BƯỚC 3: LÊN KỊCH BẢN THÔ (ROUGH SCRIPT CREATION)
-    # -------------------------------------------------------------------------
-    def step_3_create_rough_scripts(
-        self,
-        extracted_content: Dict[str, Any],
+        content: Union[str, Dict[str, Any]],
         num_videos: int,
         api_keys: List[str],
         model_name: str = "gemini-3.5-flash-lite",
         creative_styles: Optional[List[str]] = None,
         on_progress: Optional[ProgressCallback] = None,
     ) -> List[RoughScript]:
-        """Bước 3: Sử dụng PlanCreatorEngine để tạo danh sách kịch bản thô."""
+        """Bước 2: Sử dụng PlanCreatorEngine để tạo danh sách kịch bản thô trực tiếp từ nội dung người dùng."""
         if on_progress:
-            on_progress(3, f"Bước 3: Đang lên {num_videos} kịch bản thô với góc tiếp cận sáng tạo...", None)
+            on_progress(2, f"Bước 2: Đang lên {num_videos} kịch bản thô trực tiếp từ nội dung người dùng...", None)
 
         config = PlanCreatorConfig(
             model_name=model_name,
@@ -316,7 +281,7 @@ class VideoCreationPipeline:
 
         try:
             raw_result = self.plan_creator.create_plans(
-                json_content=extracted_content,
+                content=content,
                 num_scripts=num_videos,
                 creative_styles=creative_styles,
                 override_config=config,
@@ -382,20 +347,74 @@ class VideoCreationPipeline:
                     scenes=scenes,
                 ))
 
-            logger.info(f"[Bước 3] Đã tạo thành công {len(rough_scripts)} kịch bản thô")
+            logger.info(f"[Bước 2] Đã tạo thành công {len(rough_scripts)} kịch bản thô")
             if on_progress:
-                on_progress(3, f"Bước 3: Lên {len(rough_scripts)} kịch bản thô thành công!", {
+                on_progress(2, f"Bước 2: Lên {len(rough_scripts)} kịch bản thô thành công!", {
                     "rough_scripts": [s.model_dump() for s in rough_scripts]
                 })
             return rough_scripts
 
         except PlanCreatorError as e:
-            raise StepPlanCreationError(f"Lỗi Bước 3 khi lên kịch bản thô: {e}") from e
+            raise StepPlanCreationError(f"Lỗi Bước 2 khi lên kịch bản thô: {e}") from e
+
+    def step_3_create_rough_scripts(
+        self,
+        extracted_content: Optional[Union[Dict[str, Any], str]] = None,
+        num_videos: int = 1,
+        api_keys: Optional[List[str]] = None,
+        model_name: str = "gemini-3.5-flash-lite",
+        creative_styles: Optional[List[str]] = None,
+        on_progress: Optional[ProgressCallback] = None,
+        content: Optional[Union[str, Dict[str, Any]]] = None,
+        **kwargs: Any,
+    ) -> List[RoughScript]:
+        """[Deprecated Alias] Chuyển tiếp sang step_2_create_rough_scripts để giữ tương thích ngược."""
+        target_content = content if content is not None else (extracted_content if extracted_content is not None else "")
+        return self.step_2_create_rough_scripts(
+            content=target_content,
+            num_videos=num_videos,
+            api_keys=api_keys or [],
+            model_name=model_name,
+            creative_styles=creative_styles,
+            on_progress=on_progress,
+        )
+
+    def step_2_extract_content(
+        self,
+        content: str,
+        api_keys: List[str],
+        model_name: str = "gemini-3.5-flash-lite",
+        on_progress: Optional[ProgressCallback] = None,
+    ) -> Dict[str, Any]:
+        """[Deprecated] Bước trích xuất thông tin cũ trước khi gộp trực tiếp vào Plan Creator."""
+        if on_progress:
+            on_progress(2, "Bước 2 (Legacy): Đang bóc tách thông tin có cấu trúc bằng Gemini AI...", None)
+
+        extractor = self.content_extractor or ContentExtractorEngine()
+        config = ContentExtractorConfig(
+            model_name=model_name,
+            api_keys=api_keys,
+            system_prompt=DEFAULT_EXTRACTOR_SYSTEM_PROMPT,
+            json_structure=DEFAULT_EXTRACTOR_JSON_STRUCTURE,
+            temperature=0.2,
+        )
+
+        try:
+            extracted_data = extractor.extract(
+                content=content,
+                override_config=config,
+            )
+            logger.info(f"[Legacy] Bóc tách nội dung thành công: {list(extracted_data.keys())}")
+            if on_progress:
+                on_progress(2, "Bước 2 (Legacy): Bóc tách thông tin thành công!", {"extracted_data": extracted_data})
+            return extracted_data
+        except ContentExtractorError as e:
+            raise StepContentExtractionError(f"Lỗi Bước 2 khi trích xuất thông tin: {e}") from e
 
     # -------------------------------------------------------------------------
-    # BƯỚC 4: RENDER OVERLAY & AUDIO (SONG SONG)
+    # BƯỚC 3: RENDER OVERLAY & AUDIO (SONG SONG)
     # -------------------------------------------------------------------------
-    def step_4_render_assets(
+    def step_3_render_assets(
         self,
         rough_scripts: List[RoughScript],
         session_dir: Path,
@@ -417,18 +436,18 @@ class VideoCreationPipeline:
         canvas_height: int = VIDEO_HEIGHT,
         on_progress: Optional[ProgressCallback] = None,
     ) -> Dict[str, Dict[Any, Dict[str, Any]]]:
-        """Bước 4: Render Overlay ảnh PNG trong suốt và Audio TTS WAV cho từng scene."""
+        """Bước 3: Render Overlay ảnh PNG trong suốt và Audio TTS WAV cho từng scene."""
         effective_voice_id = voice_id or DEFAULT_VOICE
         if on_progress:
             sync_info = "Đồng bộ nhịp: BẬT" if sync_voice_speed else "Đồng bộ nhịp: TẮT"
-            on_progress(4, f"Bước 4: Đang render Overlay PNG và Audio lồng tiếng (Tốc độ {tts_speed}x, {sync_info})...", None)
+            on_progress(3, f"Bước 3: Đang render Overlay PNG và Audio lồng tiếng (Tốc độ {tts_speed}x, {sync_info})...", None)
 
         assets_dir = session_dir / "assets"
         assets_dir.mkdir(parents=True, exist_ok=True)
 
         rendered_assets: Dict[str, Dict[Any, Dict[str, Any]]] = {}
 
-        # 4.1 Render Overlay PNG trước (hỗ trợ chạy song song qua Chrome Headless)
+        # 3.1 Render Overlay PNG trước (hỗ trợ chạy song song qua Chrome Headless)
         overlay_tasks = []
         for script in rough_scripts:
             rendered_assets[script.script_id] = {}
@@ -615,7 +634,7 @@ class VideoCreationPipeline:
                     plan_no = script_idx + 1
                     total_scenes_in_script = len(script.scenes)
                     on_progress(
-                        4,
+                        3,
                         f"[Plan {plan_no}/{total_plans}] Đang tạo Voice AI & Overlay cảnh {scene.scene_index}/{total_scenes_in_script} (Tổng: {pct}%)",
                         {
                             "plan_index": plan_no,
@@ -632,7 +651,7 @@ class VideoCreationPipeline:
                 plan_no = script_idx + 1
                 voice_label = clean_voice_name(script_voice_clone.name if script_voice_clone else effective_voice_id)
                 on_progress(
-                    4,
+                    3,
                     f"✓ [Plan {plan_no}/{total_plans}] Hoàn tất Assets: {len(script.scenes)} cảnh | Giọng: {voice_label}",
                     {
                         "plan_completed": True,
@@ -641,19 +660,23 @@ class VideoCreationPipeline:
                     },
                 )
 
-        logger.info(f"[Bước 4] Hoàn thành render toàn bộ {total_scenes_count} assets đồ họa và âm thanh")
+        logger.info(f"[Bước 3] Hoàn thành render toàn bộ {total_scenes_count} assets đồ họa và âm thanh")
         if on_progress:
             on_progress(
-                4,
-                f"Bước 4: Hoàn tất tạo {total_scenes_count} assets đồ họa và âm thanh thành công!",
+                3,
+                f"Bước 3: Hoàn tất tạo {total_scenes_count} assets đồ họa và âm thanh thành công!",
                 {"step_completed": True},
             )
         return rendered_assets
 
+    def step_4_render_assets(self, *args: Any, **kwargs: Any) -> Dict[str, Dict[Any, Dict[str, Any]]]:
+        """[Deprecated Alias] Gọi tới step_3_render_assets để giữ tương thích ngược."""
+        return self.step_3_render_assets(*args, **kwargs)
+
     # -------------------------------------------------------------------------
-    # BƯỚC 5: LÊN KỊCH BẢN CHI TIẾT (DETAILED RENDER PLANS)
+    # BƯỚC 4: LÊN KỊCH BẢN CHI TIẾT (DETAILED RENDER PLANS)
     # -------------------------------------------------------------------------
-    def step_5_build_detailed_plans(
+    def step_4_build_detailed_plans(
         self,
         rough_scripts: List[RoughScript],
         rendered_assets: Dict[str, Dict[int, Dict[str, Any]]],
@@ -666,9 +689,9 @@ class VideoCreationPipeline:
         company_name: Optional[str] = None,
         on_progress: Optional[ProgressCallback] = None,
     ) -> List[VideoRenderPlan]:
-        """Bước 5: Lắp ráp thành VideoRenderPlan hoàn chỉnh có overlay_path, audio_path, bgm_path."""
+        """Bước 4: Lắp ráp thành VideoRenderPlan hoàn chỉnh có overlay_path, audio_path, bgm_path."""
         if on_progress:
-            on_progress(5, "Bước 5: Đang lắp ráp kịch bản chi tiết (VideoRenderPlan)...", None)
+            on_progress(4, "Bước 4: Đang lắp ráp kịch bản chi tiết (VideoRenderPlan)...", None)
 
         detailed_plans: List[VideoRenderPlan] = []
         plans_dir = session_dir / "plans"
@@ -678,7 +701,7 @@ class VideoCreationPipeline:
         allocated_bgm: List[Optional[Path]] = []
         if bgm_path and Path(bgm_path).is_file():
             allocated_bgm = [Path(bgm_path).resolve()] * len(rough_scripts)
-            logger.info(f"[Bước 5] Áp dụng file BGM cố định: '{bgm_path.name}' cho {len(rough_scripts)} kịch bản.")
+            logger.info(f"[Bước 4] Áp dụng file BGM cố định: '{bgm_path.name}' cho {len(rough_scripts)} kịch bản.")
         elif randomize_bgm:
             from app.services.video_render_engine.bgm_manager import allocate_bgm_for_plans
             effective_bgm_dir = bgm_path if (bgm_path and Path(bgm_path).is_dir()) else bgm_dir
@@ -688,14 +711,14 @@ class VideoCreationPipeline:
                 seed=bgm_seed,
             )
             bgm_names = [p.name if p else "None" for p in allocated_bgm]
-            logger.info(f"[Bước 5] Phân bổ ngẫu nhiên BGM cho {len(rough_scripts)} kịch bản: {bgm_names}")
+            logger.info(f"[Bước 4] Phân bổ ngẫu nhiên BGM cho {len(rough_scripts)} kịch bản: {bgm_names}")
         else:
             allocated_bgm = [None] * len(rough_scripts)
 
         for script_idx, script in enumerate(rough_scripts):
             if on_progress:
                 on_progress(
-                    5,
+                    4,
                     f"[Plan {script_idx + 1}/{len(rough_scripts)}] Đang lắp ráp kịch bản chi tiết: '{script.title}'...",
                     {"plan_index": script_idx + 1, "total_plans": len(rough_scripts)},
                 )
@@ -753,18 +776,22 @@ class VideoCreationPipeline:
             with open(plan_file, "w", encoding="utf-8") as f:
                 json.dump(plan_dict, f, ensure_ascii=False, indent=2)
 
-        logger.info(f"[Bước 5] Đã tạo thành công {len(detailed_plans)} kịch bản chi tiết VideoRenderPlan")
+        logger.info(f"[Bước 4] Đã tạo thành công {len(detailed_plans)} kịch bản chi tiết VideoRenderPlan")
         if on_progress:
-            on_progress(5, f"Bước 5: Lắp ráp {len(detailed_plans)} kịch bản chi tiết thành công!", {
+            on_progress(4, f"Bước 4: Lắp ráp {len(detailed_plans)} kịch bản chi tiết thành công!", {
                 "step_completed": True,
                 "detailed_plans": [p.model_dump(mode="json") for p in detailed_plans]
             })
         return detailed_plans
 
+    def step_5_build_detailed_plans(self, *args: Any, **kwargs: Any) -> List[VideoRenderPlan]:
+        """[Deprecated Alias] Gọi tới step_4_build_detailed_plans để giữ tương thích ngược."""
+        return self.step_4_build_detailed_plans(*args, **kwargs)
+
     # -------------------------------------------------------------------------
-    # BƯỚC 6: RENDER VIDEO (VIDEO RENDERING)
+    # BƯỚC 5: RENDER VIDEO (VIDEO RENDERING)
     # -------------------------------------------------------------------------
-    def step_6_render_videos(
+    def step_5_render_videos(
         self,
         source_folder: Path,
         detailed_plans: List[VideoRenderPlan],
@@ -775,9 +802,9 @@ class VideoCreationPipeline:
         enable_bgm: bool = True,
         on_progress: Optional[ProgressCallback] = None,
     ) -> List[RenderResult]:
-        """Bước 6: Dựng và xuất video MP4 hoàn chỉnh qua VideoRenderEngine."""
+        """Bước 5: Dựng và xuất video MP4 hoàn chỉnh qua VideoRenderEngine."""
         if on_progress:
-            on_progress(6, "Bước 6: Đang render video hoàn chỉnh bằng VideoRenderEngine...", None)
+            on_progress(5, "Bước 5: Đang render video hoàn chỉnh bằng VideoRenderEngine...", None)
 
         # Cấu hình video render engine kèm extra_params
         render_config = VideoRenderConfig(
@@ -796,7 +823,7 @@ class VideoCreationPipeline:
             plan_no = idx + 1
             if on_progress:
                 on_progress(
-                    6,
+                    5,
                     f"[Plan {plan_no}/{total_plans}] Đang render video: '{plan.title}'...",
                     {"plan_index": plan_no, "total_plans": total_plans},
                 )
@@ -818,7 +845,7 @@ class VideoCreationPipeline:
                     sc_idx = (int(m.group(1)) + 1) if m else "?"
                     if on_progress:
                         on_progress(
-                            6,
+                            5,
                             f"[Plan {plan_no}/{total_plans}] Đang cắt phân cảnh video {sc_idx}/{total_sc}...",
                             {"plan_index": plan_no, "total_plans": total_plans},
                         )
@@ -827,28 +854,28 @@ class VideoCreationPipeline:
                     sc_idx = (int(m.group(1)) + 1) if m else "?"
                     if on_progress:
                         on_progress(
-                            6,
+                            5,
                             f"[Plan {plan_no}/{total_plans}] Đang ghép visual cảnh {sc_idx}/{total_sc}...",
                             {"plan_index": plan_no, "total_plans": total_plans},
                         )
                 elif "Nối các phân cảnh" in core or "concat" in core.lower():
                     if on_progress:
                         on_progress(
-                            6,
+                            5,
                             f"[Plan {plan_no}/{total_plans}] Đang nối các phân cảnh video...",
                             {"plan_index": plan_no, "total_plans": total_plans},
                         )
                 elif "Render thành phẩm cuối cùng" in core or "Lồng nhạc nền BGM" in core:
                     if on_progress:
                         on_progress(
-                            6,
+                            5,
                             f"[Plan {plan_no}/{total_plans}] Đang xuất thành phẩm & hòa trộn BGM...",
                             {"plan_index": plan_no, "total_plans": total_plans},
                         )
                 elif "Anti-Reup" in core:
                     if on_progress:
                         on_progress(
-                            6,
+                            5,
                             f"[Plan {plan_no}/{total_plans}] Đang áp dụng hiệu ứng Anti-Reup...",
                             {"plan_index": plan_no, "total_plans": total_plans},
                         )
@@ -862,12 +889,12 @@ class VideoCreationPipeline:
                     on_log=_log_callback,
                 )
                 results.append(res)
-                logger.debug(f"[Bước 6] Render thành công video '{plan.title}': {res.output_path}")
+                logger.debug(f"[Bước 5] Render thành công video '{plan.title}': {res.output_path}")
 
                 if on_progress:
                     mb_size = res.file_size_bytes / (1024 * 1024)
                     on_progress(
-                        6,
+                        5,
                         f"🎬 [Plan {plan_no}/{total_plans}] Xuất video thành công: {res.output_path.name} ({res.duration:.1f}s • {mb_size:.1f} MB)",
                         {
                             "plan_completed": True,
@@ -877,15 +904,19 @@ class VideoCreationPipeline:
                         },
                     )
             except Exception as e:
-                logger.error(f"[Bước 6] Lỗi render video plan {plan.plan_id}: {e}")
+                logger.error(f"[Bước 5] Lỗi render video plan {plan.plan_id}: {e}")
                 raise StepVideoRenderError(f"Lỗi render video '{plan.title}': {e}") from e
 
         if on_progress:
-            on_progress(6, f"Bước 6: Hoàn tất render {len(results)} video thành công!", {
+            on_progress(5, f"Bước 5: Hoàn tất render {len(results)} video thành công!", {
                 "step_completed": True,
                 "results": [r.model_dump(mode="json") for r in results]
             })
         return results
+
+    def step_6_render_videos(self, *args: Any, **kwargs: Any) -> List[RenderResult]:
+        """[Deprecated Alias] Gọi tới step_5_render_videos để giữ tương thích ngược."""
+        return self.step_5_render_videos(*args, **kwargs)
 
     @staticmethod
     def cleanup_session(session_dir: Optional[Path]) -> None:
@@ -919,7 +950,7 @@ class VideoCreationPipeline:
         return cleaned_count
 
     # -------------------------------------------------------------------------
-    # HÀM ĐIỀU PHỐI TỔNG THỂ TOÀN BỘ 6 BƯỚC (FULL ORCHESTRATION)
+    # HÀM ĐIỀU PHỐI TỔNG THỂ TOÀN BỘ 5 BƯỚC (FULL ORCHESTRATION)
     # -------------------------------------------------------------------------
     def execute(
         self,
@@ -927,7 +958,7 @@ class VideoCreationPipeline:
         on_progress: Optional[ProgressCallback] = None,
         cleanup_temp: bool = True,
     ) -> PipelineResult:
-        """Chạy toàn bộ 6 bước từ nhận content đến video hoàn phẩm."""
+        """Chạy toàn bộ 5 bước từ nhận content đến video hoàn phẩm."""
         start_time = time.time()
         errors: List[str] = []
         session_id = "unknown"
@@ -944,25 +975,17 @@ class VideoCreationPipeline:
             session_dir = v_res["session_dir"]
             api_keys = v_res["api_keys"]
 
-            # 2. Trích xuất thông tin
-            extracted_content = self.step_2_extract_content(
+            # 2. Lên kịch bản thô trực tiếp từ nội dung người dùng
+            rough_scripts = self.step_2_create_rough_scripts(
                 content=input_data.content,
-                api_keys=api_keys,
-                model_name=input_data.model_name,
-                on_progress=on_progress,
-            )
-
-            # 3. Lên kịch bản thô
-            rough_scripts = self.step_3_create_rough_scripts(
-                extracted_content=extracted_content,
                 num_videos=input_data.num_videos,
                 api_keys=api_keys,
                 model_name=input_data.model_name,
                 on_progress=on_progress,
             )
 
-            # 4. Render overlay, audio (đảm bảo đồng nhất style, font & palette và giọng đọc per script)
-            rendered_assets = self.step_4_render_assets(
+            # 3. Render overlay, audio (đảm bảo đồng nhất style, font & palette và giọng đọc per script)
+            rendered_assets = self.step_3_render_assets(
                 rough_scripts=rough_scripts,
                 session_dir=session_dir,
                 overlay_style=input_data.overlay_style,
@@ -984,21 +1007,20 @@ class VideoCreationPipeline:
                 on_progress=on_progress,
             )
 
-            # 5. Lên kịch bản chi tiết (có overlay path, audio path)
-            company_name = extracted_content.get("company_name")
-            detailed_plans = self.step_5_build_detailed_plans(
+            # 4. Lên kịch bản chi tiết (có overlay path, audio path)
+            detailed_plans = self.step_4_build_detailed_plans(
                 rough_scripts=rough_scripts,
                 rendered_assets=rendered_assets,
                 bgm_path=input_data.bgm_path,
                 session_dir=session_dir,
                 bgm_volume=input_data.bgm_volume,
                 randomize_bgm=input_data.randomize_bgm,
-                company_name=company_name,
+                company_name=None,
                 on_progress=on_progress,
             )
 
-            # 6. Render video
-            render_results = self.step_6_render_videos(
+            # 5. Render video
+            render_results = self.step_5_render_videos(
                 source_folder=input_data.video_source_path,
                 detailed_plans=detailed_plans,
                 output_dir=input_data.output_dir,
