@@ -28,6 +28,8 @@ VALID_EMOTION_TAGS = (
 # Re-export các prompt và schema từ module prompts chuyên biệt để đảm bảo 100% Backward Compatibility
 from app.services.plan_creator.prompts import (
     DEFAULT_JSON_STRUCTURE,
+    DEFAULT_SINGLE_PLAN_JSON_STRUCTURE,
+    DEFAULT_SINGLE_PLAN_USER_PROMPT_TEMPLATE,
     DEFAULT_SYSTEM_PROMPT,
     DEFAULT_USER_PROMPT_TEMPLATE,
 )
@@ -38,6 +40,8 @@ __all__ = [
     "DEFAULT_SYSTEM_PROMPT",
     "DEFAULT_JSON_STRUCTURE",
     "DEFAULT_USER_PROMPT_TEMPLATE",
+    "DEFAULT_SINGLE_PLAN_JSON_STRUCTURE",
+    "DEFAULT_SINGLE_PLAN_USER_PROMPT_TEMPLATE",
 ]
 
 

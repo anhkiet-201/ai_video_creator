@@ -17,6 +17,8 @@ from app.services.plan_creator.constants import (
 from app.services.plan_creator.models import PlanCreatorConfig
 from app.services.plan_creator.prompts import (
     DEFAULT_JSON_STRUCTURE,
+    DEFAULT_SINGLE_PLAN_JSON_STRUCTURE,
+    DEFAULT_SINGLE_PLAN_USER_PROMPT_TEMPLATE,
     DEFAULT_SYSTEM_PROMPT,
     DEFAULT_USER_PROMPT_TEMPLATE,
 )
@@ -36,6 +38,8 @@ __all__ = [
     "DEFAULT_SYSTEM_PROMPT",
     "DEFAULT_USER_PROMPT_TEMPLATE",
     "DEFAULT_JSON_STRUCTURE",
+    "DEFAULT_SINGLE_PLAN_JSON_STRUCTURE",
+    "DEFAULT_SINGLE_PLAN_USER_PROMPT_TEMPLATE",
     "FFMPEG_TRANSITIONS",
 
     "PlanCreatorError",

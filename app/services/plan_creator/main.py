@@ -108,13 +108,19 @@ def main():
         "Góc nhìn câu chuyện thử thách kỹ thuật chuyên nghiệp"
     ]
 
-    print("\n[+] Bắt đầu tạo danh sách kịch bản video bằng Gemini AI...")
+    def on_plan_progress(idx: int, total: int, script: dict):
+        title = script.get("title") or f"Kịch bản #{idx}"
+        scenes_count = len(script.get("scenes", []))
+        print(f"    -> [✓] Đã tạo xong kịch bản {idx}/{total}: '{title}' ({scenes_count} scenes)")
+
+    print(f"\n[+] Bắt đầu tạo {args.num_scripts} kịch bản video bằng Gemini AI (1 request / 1 plan)...")
     t_start = time.time()
     try:
         result = engine.create_plans(
             content=content_data,
             num_scripts=args.num_scripts,
             creative_styles=styles[: args.num_scripts],
+            on_progress=on_plan_progress,
         )
         duration = time.time() - t_start
 

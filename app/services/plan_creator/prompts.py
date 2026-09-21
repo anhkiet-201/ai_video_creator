@@ -119,3 +119,51 @@ DEFAULT_USER_PROMPT_TEMPLATE = (
     "3. The 'scripts' array must contain exactly {num_scripts} items.\n"
     "4. MANDATORY ACCENTED VIETNAMESE: Output strictly 100% natural Vietnamese with full, proper diacritical marks. Never generate unaccented Vietnamese (tiếng Việt không dấu)."
 )
+
+# JSON Schema contract cho Single Plan (1 kịch bản đơn lẻ)
+DEFAULT_SINGLE_PLAN_JSON_STRUCTURE: Dict[str, Any] = {
+    "script_id": "<integer: 1-based script index>",
+    "title": "<string: optional short video title, can be empty>",
+    "overlay_style": "<string: one graphic style name, e.g. bubble_cloud | torn_paper | pastel_multicolor | marshmallow_pink | vlog_doodle | daisy_diary | ocean_chalk | retro_groovy | tropical_contour | grid_notebook | baby_blue>",
+    "scenes": [
+        {
+            "scene_index": "<integer: 1-based scene index within this script, exactly 5 to 7 scenes total per script>",
+            "title": "<string: uppercase punchy headline with FULL Vietnamese diacritics, 3-5 words, strictly describing REAL JOB, TRADE, OR WORKPLACE LOCATION, e.g. XƯỞNG GHẾ MÂY, ĐÓNG GÓI ĐAN MÓC, KCN TAM PHƯỚC, NEVER unaccented like CONG VIEC ON DINH, strictly NO financial/money/wage words, no gender, no age, no paperwork/PII>",
+            "sub_title": "<string: concrete workplace detail or task note with FULL Vietnamese diacritics max 15 words, or empty string, strictly no financial clickbait, no gender, no age, no paperwork/PII>",
+            "srt_script": "<string: natural spoken Vietnamese sentence with FULL standard diacritics (18-28 words), strictly 100% accented Vietnamese (tiếng Việt có dấu), 75-80% focus on physical workplace review and task walkthrough, max 1 brief modest mention of pay in a middle scene, strictly zero financial scam or quick-money phrasing, strictly zero gender, strictly zero age numbers, strictly zero PII/paperwork, natural sincere peer tone, rich in spoken particles, strictly zero emojis/icons/special characters, phonetic foreign words and expanded acronyms, contextual emotion tag (only when emotionally fitting), optional contextual sound-effect at end of scene (diverse selection across scripts, max 1 per script)>",
+            "transition": "<string: valid FFmpeg xfade transition name>",
+        }
+    ],
+}
+
+# User Prompt Template cho Single Plan (1 kịch bản đơn lẻ)
+DEFAULT_SINGLE_PLAN_USER_PROMPT_TEMPLATE = (
+    "USER INPUT SOURCE CONTENT (RAW JOB POSTING / RECRUITMENT TEXT):\n"
+    "\"\"\"\n{content_str}\n\"\"\"\n\n"
+    "TASK REQUIREMENTS:\n"
+    "- Generate exactly 1 distinct video script (Script #{script_index} of {total_scripts}) with exactly 5 to 7 scenes (MANDATORY: NEVER fewer than 5 scenes).\n"
+    "- 5-PILLAR ARCHITECTURE ENFORCEMENT:\n"
+    "  1. ROLE: Sincere, experienced peer worker sharing genuine job opportunities.\n"
+    "  2. TARGET AUDIENCE: Blue-collar and manual workers. Grounded, practical, honest, and easy to understand.\n"
+    "  3. OBJECTIVES: 3-second hook connecting requested theme to workers' real lives; 75-80% focus on authentic workplace review and task walkthrough; warm peer invitation.\n"
+    "  4. STRICT RULES (ZERO EXAMPLES):\n"
+    "     * 100% Source Fidelity: Zero noun invention. Extract factual tasks, hours, and payment cycles directly from source. Focus 75-80% on detailed review of real workplace tasks, tools, and shop environment. Strictly limit compensation to at most 1 brief middle scene.\n"
+    "     * Titles: 100% job/trade/workplace names only (e.g. XƯỞNG GHẾ MÂY, ĐÓNG GÓI ĐAN MÓC). Strictly ZERO financial titles (no money, wage, or payout words in titles).\n"
+    "     * Language & Diacritics: MANDATORY 100% ACCENTED VIETNAMESE. All text in titles, sub_titles, and srt_scripts MUST have full standard Vietnamese tone marks/diacritics. Strictly ZERO unaccented Vietnamese (tiếng Việt không dấu). Even all-caps headlines MUST preserve Vietnamese accents (e.g. CÔNG VIỆC ỔN ĐỊNH, not CONG VIEC ON DINH).\n"
+    "     * Platform Safety: Strictly ZERO gender. Strictly ZERO age numbers and ZERO birth years (no 2008, 200x, 2k8, sinh năm, thiếu tháng). Omit all PII and paperwork. Strictly ban quick-money scam phrasing. Strictly ban violence/weapon words.\n"
+    "     * Tone: Natural everyday spoken Vietnamese. Strictly ban administrative, corporate, or academic jargon. Strictly ban boastful exaggeration or online meme slang.\n"
+    "     * Audio & Tag constraints: 18 to 28 words per scene. Strictly zero emojis or unpronounceable characters. Expand all acronyms and phonetically transcribe foreign words. Contextual emotion tags (cười/thở dài/hắng giọng) matching real feelings only. Non-formulaic sound effects: optional, max 1 per script at end of scene, dynamically chosen from available sounds to match specific narrative moments, never defaulting repeatedly to the same sound.\n"
+    "  5. STRUCTURE: Scene 1 Hook & Workplace Intro -> Middle Scenes detailed tasks and workplace review (75% focus) -> Max 1 brief compensation scene -> Final Scene reassuring call to action.\n"
+    "{styles_instruction}\n"
+    "{sound_effects_instruction}\n"
+    "DESIRED OUTPUT JSON STRUCTURE:\n"
+    "Return a single valid JSON object strictly matching the following schema representing exactly this 1 video script with 5 to 7 scenes:\n"
+    "{schema_repr}\n\n"
+    "EXECUTION RULES:\n"
+    "1. Output a single valid JSON object only. No intro, no markdown code fence wrappers, and no conversational filler.\n"
+    "2. Strictly enforce all 5-Pillar System Prompt instructions: zero hallucination, custom directives priority, platform safety (zero gender, zero age, zero PII, zero quick-money phrasing, zero violence words), natural everyday tone without corporate jargon or boastful slang, phonetic transcription & acronym expansion for srt_script, zero emojis/icons, allowed audio emotion tags, sound effects rules, and valid FFmpeg xfade transitions.\n"
+    "3. Set 'script_id' to {script_index}.\n"
+    "4. The 'scenes' array must contain exactly 5 to 7 items.\n"
+    "5. MANDATORY ACCENTED VIETNAMESE: Output strictly 100% natural Vietnamese with full, proper diacritical marks. Never generate unaccented Vietnamese (tiếng Việt không dấu)."
+)
+

@@ -3,7 +3,7 @@ import logging
 import random
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 
 from app.services.key_rotator import KeyRotator
 from app.services.plan_creator.constants import VALID_EMOTION_TAGS
@@ -43,6 +43,10 @@ def sanitize_script_tags(
 ) -> Dict[str, Any]:
     """Lọc và chuẩn hóa toàn bộ thẻ trong srt_script của các kịch bản video.
 
+    Hỗ trợ linh hoạt cả 2 định dạng đầu vào:
+    1. Dict bọc danh sách kịch bản: {"total_scripts": N, "scripts": [...]}
+    2. Single Script Object: {"script_id": 1, "scenes": [...]}
+
     Đảm bảo tuyệt đối:
     1. Chỉ giữ lại đúng 3 nhóm thẻ cảm xúc: [cười]/[chuckle], [thở dài]/[sigh], [hắng giọng]/[clear throat].
        Mọi thẻ trong ngoặc vuông tự bịa khác ([ngạc nhiên], [khóc], [vỗ tay]...) bị loại bỏ sạch sẽ.
@@ -62,12 +66,16 @@ def sanitize_script_tags(
     )
 
     scripts = data.get("scripts")
-    if not isinstance(scripts, list):
+    if isinstance(scripts, list):
+        script_items = scripts
+    elif isinstance(data.get("scenes"), list):
+        script_items = [data]
+    else:
         return data
 
     bracket_pattern = re.compile(r"\[([^\]]+)\]")
 
-    for script in scripts:
+    for script in script_items:
         if not isinstance(script, dict):
             continue
 
@@ -164,23 +172,99 @@ class PlanCreatorEngine:
         else:
             self.key_rotator = KeyRotator([])
 
+    def create_single_plan(
+        self,
+        content: Union[Dict[str, Any], str],
+        script_index: int = 1,
+        total_scripts: int = 1,
+        creative_style: Optional[str] = None,
+        override_config: Optional[PlanCreatorConfig] = None,
+    ) -> Dict[str, Any]:
+        """Tạo duy nhất 1 kịch bản video từ nội dung văn bản (hoặc JSON) qua 1 request Gemini AI.
+
+        Args:
+            content: Dữ liệu nội dung bài đăng/tin tuyển dụng (chuỗi văn bản hoặc dict).
+            script_index: Chỉ số thứ tự của kịch bản này (1-based, mặc định: 1).
+            total_scripts: Tổng số kịch bản dự kiến tạo trong mẻ (mặc định: 1).
+            creative_style: Phong cách/góc tiếp cận cụ thể cho kịch bản này (tùy chọn).
+            override_config: Cấu hình ghi đè nếu muốn thay đổi config lúc gọi hàm.
+
+        Returns:
+            Dict[str, Any]: Dữ liệu 1 kịch bản video (single script object) đã làm sạch thẻ.
+
+        Raises:
+            EmptyContentError: Nếu nội dung rỗng hoặc không hợp lệ.
+            MissingSystemPromptError: Nếu thiếu system_prompt.
+            MissingJsonStructureError: Nếu thiếu cấu trúc json_structure.
+            NoValidApiKeyError: Nếu không có API key hợp lệ hoặc toàn bộ key hết hạn mức.
+            JSONParsingError: Nếu AI trả về kết quả không parse được sang JSON.
+            PlanCreatorError: Các lỗi hệ thống khác.
+        """
+        # 0. Kiểm tra tính hợp lệ ban đầu của content
+        if content is None:
+            raise EmptyContentError("Nội dung đầu vào không được để trống!")
+
+        content_str = self._serialize_content(content)
+        if not content_str or not content_str.strip():
+            raise EmptyContentError("Nội dung đầu vào không được để trống!")
+
+        # 1. Xác định config áp dụng
+        active_config = override_config or self.config
+        if not active_config:
+            raise PlanCreatorError("Chưa cung cấp cấu hình PlanCreatorConfig cho PlanCreatorEngine!")
+
+        if not active_config.system_prompt or not active_config.system_prompt.strip():
+            raise MissingSystemPromptError("system_prompt không được để trống trong cấu hình!")
+
+        if not active_config.json_structure:
+            raise MissingJsonStructureError("json_structure không được để trống trong cấu hình!")
+
+        # 2. Đồng bộ danh sách API Keys vào KeyRotator nếu có override khác với hiện tại
+        if override_config and override_config.api_keys:
+            if override_config.api_keys != self.key_rotator._keys:
+                self.key_rotator.set_keys(override_config.api_keys)
+
+        if not self.key_rotator.has_available_keys():
+            raise NoValidApiKeyError(
+                "Không tìm thấy Gemini API Key khả dụng hoặc danh sách api_keys rỗng. "
+                "Vui lòng cung cấp ít nhất một API Key hợp lệ."
+            )
+
+        # 3. Xây dựng prompt cho single plan & gọi Gemini AI có cơ chế xoay vòng key
+        prompt_content = self._build_single_plan_prompt_content(
+            config=active_config,
+            content_str=content_str,
+            script_index=script_index,
+            total_scripts=total_scripts,
+            creative_style=creative_style,
+        )
+        raw_result = self._execute_with_rotation(active_config, prompt_content)
+        single_script = self._extract_single_script_data(raw_result, script_index=script_index)
+
+        return sanitize_script_tags(
+            data=single_script,
+            sounds_dir=getattr(active_config, "sound_effects_dir", None),
+        )
+
     def create_plans(
         self,
         content: Union[Dict[str, Any], str],
         num_scripts: int = 1,
         creative_styles: Optional[List[str]] = None,
         override_config: Optional[PlanCreatorConfig] = None,
+        on_progress: Optional[Callable[[int, int, Dict[str, Any]], None]] = None,
     ) -> Dict[str, Any]:
-        """Tạo danh sách các kịch bản video từ nội dung văn bản (hoặc JSON) của người dùng.
+        """Tạo danh sách các kịch bản video bằng cách gửi từng request Gemini cho mỗi kịch bản.
 
         Args:
             content: Dữ liệu nội dung bài đăng/tin tuyển dụng (chuỗi văn bản hoặc dict).
             num_scripts: Số lượng kịch bản cần tạo (mặc định: 1, phải > 0).
             creative_styles: Danh sách các phong cách/góc tiếp cận tùy chọn (ví dụ: ["Drama", "Hài hước"]).
             override_config: Cấu hình ghi đè nếu muốn thay đổi config lúc gọi hàm.
+            on_progress: Callback tùy chọn nhận (script_index, total_scripts, script_data) khi từng plan hoàn thành.
 
         Returns:
-            Dict[str, Any]: Danh sách kịch bản theo đúng cấu trúc JSON mong muốn.
+            Dict[str, Any]: Danh sách kịch bản theo đúng cấu trúc JSON chuẩn {"total_scripts": N, "scripts": [...]}.
 
         Raises:
             EmptyContentError: Nếu nội dung rỗng hoặc không hợp lệ.
@@ -215,9 +299,10 @@ class PlanCreatorEngine:
         if not active_config.json_structure:
             raise MissingJsonStructureError("json_structure không được để trống trong cấu hình!")
 
-        # 4. Đồng bộ danh sách API Keys vào KeyRotator nếu có override
+        # 4. Đồng bộ danh sách API Keys vào KeyRotator nếu có override khác với hiện tại
         if override_config and override_config.api_keys:
-            self.key_rotator.set_keys(override_config.api_keys)
+            if override_config.api_keys != self.key_rotator._keys:
+                self.key_rotator.set_keys(override_config.api_keys)
 
         if not self.key_rotator.has_available_keys():
             raise NoValidApiKeyError(
@@ -225,18 +310,33 @@ class PlanCreatorEngine:
                 "Vui lòng cung cấp ít nhất một API Key hợp lệ."
             )
 
-        # 5. Xây dựng prompt & gọi Gemini AI có cơ chế xoay vòng key
-        prompt_content = self._build_prompt_content(
-            config=active_config,
-            content_str=content_str,
-            num_scripts=num_scripts,
-            creative_styles=creative_styles,
-        )
-        raw_result = self._execute_with_rotation(active_config, prompt_content)
-        return sanitize_script_tags(
-            data=raw_result,
-            sounds_dir=getattr(active_config, "sound_effects_dir", None),
-        )
+        # 5. Lặp qua từng kịch bản, mỗi kịch bản là 1 request Gemini AI độc lập
+        all_scripts: List[Dict[str, Any]] = []
+        for i in range(1, num_scripts + 1):
+            # Phân bổ phong cách sáng tạo riêng cho kịch bản thứ i (nếu có)
+            current_style: Optional[str] = None
+            if creative_styles:
+                current_style = creative_styles[(i - 1) % len(creative_styles)]
+
+            single_script = self.create_single_plan(
+                content=content_str,
+                script_index=i,
+                total_scripts=num_scripts,
+                creative_style=current_style,
+                override_config=active_config,
+            )
+            all_scripts.append(single_script)
+
+            if on_progress is not None:
+                try:
+                    on_progress(i, num_scripts, single_script)
+                except Exception as e:
+                    logger.warning(f"Lỗi trong callback on_progress kịch bản {i}/{num_scripts}: {e}")
+
+        return {
+            "total_scripts": len(all_scripts),
+            "scripts": all_scripts,
+        }
 
     def _serialize_content(self, content: Union[Dict[str, Any], str]) -> str:
         """Chuyển đổi dữ liệu đầu vào thành chuỗi nội dung văn bản hoặc chuỗi JSON."""
@@ -283,6 +383,76 @@ class PlanCreatorEngine:
             .replace("{sound_effects_instruction}", sound_effects_instruction)
             .replace("{schema_repr}", schema_repr)
         )
+
+    def _build_single_plan_prompt_content(
+        self,
+        config: PlanCreatorConfig,
+        content_str: str,
+        script_index: int,
+        total_scripts: int,
+        creative_style: Optional[str] = None,
+    ) -> str:
+        """Xây dựng nội dung yêu cầu cho 1 kịch bản video đơn lẻ gửi cho Gemini AI."""
+        schema_repr = config.get_single_plan_json_structure_str()
+
+        styles_instruction = ""
+        if creative_style and creative_style.strip():
+            styles_instruction = (
+                f"- Creative angle / style requested: \"{creative_style.strip()}\".\n"
+                f"  Embody this specific tone and perspective deeply throughout the script."
+            )
+
+        from app.services.video_render_engine.sound_effect_manager import format_sound_effects_for_prompt
+
+        sfx_dir = getattr(config, "sound_effects_dir", None)
+        sound_effects_instruction = format_sound_effects_for_prompt(sfx_dir)
+
+        template = config.get_single_plan_user_prompt_template()
+        return (
+            template
+            .replace("{content_str}", content_str)
+            .replace("{script_index}", str(script_index))
+            .replace("{total_scripts}", str(total_scripts))
+            .replace("{num_scripts}", "1")
+            .replace("{styles_instruction}", styles_instruction)
+            .replace("{sound_effects_instruction}", sound_effects_instruction)
+            .replace("{schema_repr}", schema_repr)
+        )
+
+    def _extract_single_script_data(
+        self,
+        raw_result: Dict[str, Any],
+        script_index: int = 1,
+    ) -> Dict[str, Any]:
+        """Chuẩn hóa dữ liệu kịch bản đơn lẻ từ phản hồi của Gemini AI."""
+        if not isinstance(raw_result, dict):
+            raise JSONParsingError(f"Phản hồi từ AI phải là một đối tượng dict, nhận được: {type(raw_result).__name__}")
+
+        # 1. Nếu AI bọc trong danh sách 'scripts'
+        if "scripts" in raw_result and isinstance(raw_result["scripts"], list) and raw_result["scripts"]:
+            idx = script_index - 1
+            if 0 <= idx < len(raw_result["scripts"]):
+                target = raw_result["scripts"][idx]
+            else:
+                target = raw_result["scripts"][0]
+            if isinstance(target, dict):
+                target.setdefault("script_id", script_index)
+                return target
+
+        # 2. Nếu AI trả về trực tiếp Single Script Object chứa 'scenes'
+        if "scenes" in raw_result and isinstance(raw_result["scenes"], list):
+            raw_result.setdefault("script_id", script_index)
+            return raw_result
+
+        # 3. Duyệt tìm object con chứa 'scenes'
+        for v in raw_result.values():
+            if isinstance(v, dict) and "scenes" in v:
+                v.setdefault("script_id", script_index)
+                return v
+
+        # 4. Fallback an toàn cho mock hoặc custom payload
+        raw_result.setdefault("script_id", script_index)
+        return raw_result
 
     def _execute_with_rotation(
         self,

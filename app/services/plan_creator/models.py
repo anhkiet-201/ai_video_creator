@@ -36,6 +36,14 @@ class PlanCreatorConfig(BaseModel):
         default=None,
         description="Thư mục chứa hiệu ứng âm thanh (mặc định: EFFECT_SOUNDS_DIR)"
     )
+    single_plan_user_prompt_template: Optional[str] = Field(
+        default=None,
+        description="Mẫu nội dung yêu cầu cho từng plan đơn lẻ gửi cho AI. Nếu để None sẽ dùng DEFAULT_SINGLE_PLAN_USER_PROMPT_TEMPLATE."
+    )
+    single_plan_json_structure: Optional[Union[Dict[str, Any], str]] = Field(
+        default=None,
+        description="Cấu trúc JSON đầu ra cho 1 plan đơn lẻ. Nếu để None sẽ dùng DEFAULT_SINGLE_PLAN_JSON_STRUCTURE."
+    )
 
     @field_validator("api_keys")
     @classmethod
@@ -89,3 +97,20 @@ class PlanCreatorConfig(BaseModel):
         if isinstance(self.json_structure, dict):
             return json.dumps(self.json_structure, ensure_ascii=False, indent=2)
         return str(self.json_structure)
+
+    def get_single_plan_user_prompt_template(self) -> str:
+        """Lấy user prompt template cho single plan đã cấu hình hoặc lấy mặc định từ constants."""
+        if self.single_plan_user_prompt_template and self.single_plan_user_prompt_template.strip():
+            return self.single_plan_user_prompt_template.strip()
+        from app.services.plan_creator.prompts import DEFAULT_SINGLE_PLAN_USER_PROMPT_TEMPLATE
+        return DEFAULT_SINGLE_PLAN_USER_PROMPT_TEMPLATE
+
+    def get_single_plan_json_structure_str(self) -> str:
+        """Chuyển đổi single_plan_json_structure thành chuỗi JSON có định dạng đẹp mắt."""
+        if self.single_plan_json_structure is not None:
+            if isinstance(self.single_plan_json_structure, dict):
+                return json.dumps(self.single_plan_json_structure, ensure_ascii=False, indent=2)
+            return str(self.single_plan_json_structure)
+        from app.services.plan_creator.prompts import DEFAULT_SINGLE_PLAN_JSON_STRUCTURE
+        return json.dumps(DEFAULT_SINGLE_PLAN_JSON_STRUCTURE, ensure_ascii=False, indent=2)
+

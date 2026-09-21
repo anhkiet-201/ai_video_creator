@@ -205,9 +205,10 @@ def test_key_rotation_on_failure():
 
     with patch("google.genai.Client", return_value=mock_client):
         result = engine.create_plans(SAMPLE_CONTENT, num_scripts=2)
-        assert result["status"] == "ok"
         assert result["total_scripts"] == 2
-        assert call_count[0] == 2
+        assert len(result["scripts"]) == 2
+        assert result["scripts"][0]["status"] == "ok"
+        assert call_count[0] == 3
         # Key fail phải bị đánh dấu failed
         assert "key-fail-1" in engine.key_rotator._failed_keys
         assert engine.key_rotator.available_keys_count() == 1
@@ -244,6 +245,7 @@ def test_create_plans_success():
             num_scripts=3,
             creative_styles=["Drama", "Flex", "Review"]
         )
+        assert mock_client.models.generate_content.call_count == 3
         assert result["total_scripts"] == 3
         assert len(result["scripts"]) == 3
         assert result["scripts"][0]["title"] == "Kịch bản Drama"
@@ -301,6 +303,98 @@ def test_raw_user_input_content():
         assert "KCN VSIP 2A Bình Dương" in str(sent_contents)
 
     print("-> PASS: test_raw_user_input_content")
+
+
+def test_create_single_plan():
+    """Kiểm tra gọi trực tiếp create_single_plan sinh ra đúng 1 kịch bản đơn lẻ."""
+    config = PlanCreatorConfig(
+        api_keys=["valid-key"],
+        system_prompt="Prompt test",
+        json_structure=SAMPLE_STRUCTURE,
+    )
+    engine = PlanCreatorEngine(config)
+
+    mock_client = MagicMock()
+    mock_resp = MagicMock()
+    mock_resp.text = json.dumps({
+        "script_id": 1,
+        "title": "Kịch bản Độc Lập",
+        "scenes": [
+            {
+                "scene_index": 1,
+                "title": "XƯỞNG GHẾ MÂY",
+                "sub_title": "Đan lát tỉ mỉ",
+                "srt_script": "Bà con cô bác vào đây làm việc nha [cười].",
+                "transition": "fade",
+            }
+        ]
+    })
+    mock_client.models.generate_content.return_value = mock_resp
+
+    with patch("google.genai.Client", return_value=mock_client):
+        res = engine.create_single_plan(
+            content=SAMPLE_CONTENT,
+            script_index=1,
+            total_scripts=1,
+            creative_style="Hài hước",
+        )
+        assert res["script_id"] == 1
+        assert res["title"] == "Kịch bản Độc Lập"
+        assert len(res["scenes"]) == 1
+        assert "[cười]" in res["scenes"][0]["srt_script"]
+    print("-> PASS: test_create_single_plan")
+
+
+def test_create_plans_each_request_is_one_plan():
+    """Kiểm tra create_plans gọi mỗi request là 1 plan độc lập và kích hoạt on_progress callback."""
+    config = PlanCreatorConfig(
+        api_keys=["valid-key"],
+        system_prompt="Prompt test",
+        json_structure=SAMPLE_STRUCTURE,
+    )
+    engine = PlanCreatorEngine(config)
+
+    mock_client = MagicMock()
+
+    def mock_gen(*args, **kwargs):
+        resp = MagicMock()
+        resp.text = json.dumps({
+            "title": "Kịch bản test",
+            "scenes": [
+                {
+                    "scene_index": 1,
+                    "title": "LẮP RÁP BẮN VÍT",
+                    "sub_title": "Việc làm đều đặn",
+                    "srt_script": "Công việc ổn định anh em cùng tham gia nhé.",
+                    "transition": "fade",
+                }
+            ]
+        })
+        return resp
+
+    mock_client.models.generate_content.side_effect = mock_gen
+
+    progress_calls = []
+
+    def on_prog(idx, total, script):
+        progress_calls.append((idx, total, script.get("title")))
+
+    with patch("google.genai.Client", return_value=mock_client):
+        res = engine.create_plans(
+            content=SAMPLE_CONTENT,
+            num_scripts=3,
+            creative_styles=["Style 1", "Style 2", "Style 3"],
+            on_progress=on_prog,
+        )
+
+        assert mock_client.models.generate_content.call_count == 3
+        assert res["total_scripts"] == 3
+        assert len(res["scripts"]) == 3
+        assert len(progress_calls) == 3
+        assert progress_calls[0] == (1, 3, "Kịch bản test")
+        assert progress_calls[1] == (2, 3, "Kịch bản test")
+        assert progress_calls[2] == (3, 3, "Kịch bản test")
+    print("-> PASS: test_create_plans_each_request_is_one_plan")
 
 
 def test_user_prompt_template_and_sync():
@@ -727,6 +821,8 @@ if __name__ == "__main__":
     test_clean_and_parse_json()
     test_key_rotation_on_failure()
     test_create_plans_success()
+    test_create_single_plan()
+    test_create_plans_each_request_is_one_plan()
     test_raw_user_input_content()
     test_user_prompt_template_and_sync()
     test_ffmpeg_transitions_completeness()
