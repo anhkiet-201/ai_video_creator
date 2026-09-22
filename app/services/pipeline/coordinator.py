@@ -302,8 +302,8 @@ class VideoCreationPipeline:
 
                 scenes: List[RoughScene] = []
                 raw_scenes = item.get("scenes", [])
-                if not isinstance(raw_scenes, list):
-                    raw_scenes = [raw_scenes]
+                from app.services.plan_creator.engine import PlanCreatorEngine
+                raw_scenes = PlanCreatorEngine._normalize_scenes_list(raw_scenes)
 
                 for s_idx, s in enumerate(raw_scenes):
                     if isinstance(s, dict):
@@ -579,6 +579,15 @@ class VideoCreationPipeline:
                     raw_narration = f"{scene.title}. {scene.sub_title}"
                 else:
                     raw_narration = scene.title
+
+                # Phòng vệ: Loại bỏ hoàn toàn nếu lọt chuỗi code dict vào raw_narration
+                if "{" in raw_narration and ("scene_index" in raw_narration or "srt_script" in raw_narration):
+                    logger.warning(f"Phát hiện chuỗi mã code trong narration cảnh {scene.scene_index}: {raw_narration[:60]}... Đang làm sạch.")
+                    dict_m = re.search(r"['\"]srt_script['\"]\s*:\s*['\"]([^'\"]+)['\"]", raw_narration)
+                    if dict_m:
+                        raw_narration = dict_m.group(1).strip()
+                    else:
+                        raw_narration = re.sub(r"\{[^{}]*\}", "", raw_narration).strip()
 
                 # Bóc tách thẻ [sound-effect:<tên file>] nếu có
                 clean_narration, sfx_tag = parse_sound_effect_tag(raw_narration)

@@ -98,7 +98,7 @@ class TestSoundEffectManager(unittest.TestCase):
         self.assertIn("Ting - Quyền lợi hấp dẫn.mp3", prompt_text)
         self.assertIn("Boom - Nhấn mạnh kịch tính.wav", prompt_text)
         self.assertIn("[sound-effect:Ting - Quyền lợi hấp dẫn.mp3]", prompt_text)
-        self.assertIn("CUỐI CÂU", prompt_text)
+        self.assertIn("very end", prompt_text)
 
         # Kiểm tra thư mục rỗng trả về chuỗi rỗng
         empty_dir = WORK_DIR / "empty_dir"

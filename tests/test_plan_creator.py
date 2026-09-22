@@ -884,6 +884,37 @@ def test_unbroken_narrative_continuity_prompts():
     print("-> PASS: test_unbroken_narrative_continuity_prompts")
 
 
+def test_normalize_scenes_list_recovers_from_concatenated_string_dicts():
+    """Kiểm tra bộ chuẩn hóa _normalize_scenes_list bóc tách chính xác các dict bị dồn thành chuỗi (lỗi Plan 7)."""
+    from app.services.plan_creator.engine import PlanCreatorEngine, sanitize_script_tags
+
+    plan_7_defect_string = (
+        "{'scene_index': 1, 'title': 'XƯỞNG SẢN XUẤT MÁY HÚT BỤI', 'sub_title': 'Khu công nghiệp Sông Mây', 'srt_script': 'Hôm nay mình ghé thăm xưởng.', 'transition': 'fade'} "
+        "{'scene_index': 2, 'title': 'LẮP RÁP VÀ KIỂM HÀNG', 'sub_title': 'Môi trường máy lạnh', 'srt_script': 'Bước vào phòng lắp ráp thấy mát mẻ.', 'transition': 'slideleft'} "
+        "{'scene_index': 3, 'title': 'ĐÓNG GÓI VÀ ÉP NHỰA', 'sub_title': 'Băng chuyền liên tục', 'srt_script': 'Công việc chính là lắp ráp linh kiện.', 'transition': 'dissolve'}"
+    )
+
+    # 1. Kiểm tra _normalize_scenes_list trực tiếp
+    scenes = PlanCreatorEngine._normalize_scenes_list([plan_7_defect_string])
+    assert len(scenes) == 3, f"Phải bóc tách được 3 scenes, thực tế: {len(scenes)}"
+    assert scenes[0]["title"] == "XƯỞNG SẢN XUẤT MÁY HÚT BỤI"
+    assert scenes[0]["srt_script"] == "Hôm nay mình ghé thăm xưởng."
+    assert scenes[1]["scene_index"] == 2
+    assert scenes[2]["srt_script"] == "Công việc chính là lắp ráp linh kiện."
+
+    # 2. Kiểm tra sanitize_script_tags tự động giải mã
+    script_payload = {
+        "script_id": 7,
+        "title": "Test Defect Plan",
+        "scenes": [plan_7_defect_string]
+    }
+    sanitized = sanitize_script_tags(script_payload)
+    assert len(sanitized["scenes"]) == 3
+    assert not any("{" in sc["srt_script"] for sc in sanitized["scenes"])
+
+    print("-> PASS: test_normalize_scenes_list_recovers_from_concatenated_string_dicts")
+
+
 if __name__ == "__main__":
     test_invalid_num_scripts()
     test_empty_content_raises_empty_content_error()
@@ -905,6 +936,8 @@ if __name__ == "__main__":
     test_sensitive_rules_module_and_random_choice()
     test_meta_directive_reasoning_and_zero_parroting_prompts()
     test_unbroken_narrative_continuity_prompts()
+    test_normalize_scenes_list_recovers_from_concatenated_string_dicts()
     print("\n==================================================")
     print(" TOÀN BỘ UNIT TESTS CỦA PLAN CREATOR ĐÃ VƯỢT QUA! ")
     print("==================================================")
+

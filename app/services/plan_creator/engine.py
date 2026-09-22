@@ -1,3 +1,4 @@
+import ast
 import json
 import logging
 import random
@@ -79,7 +80,9 @@ def sanitize_script_tags(
         if not isinstance(script, dict):
             continue
 
-        scenes = script.get("scenes")
+        raw_scenes = script.get("scenes")
+        scenes = PlanCreatorEngine._normalize_scenes_list(raw_scenes)
+        script["scenes"] = scenes
         if not isinstance(scenes, list):
             continue
 
@@ -102,6 +105,14 @@ def sanitize_script_tags(
             raw_script = scene.get("srt_script")
             if not isinstance(raw_script, str) or not raw_script.strip():
                 continue
+
+            # Phòng vệ: Loại bỏ hoàn toàn nếu lọt chuỗi code dict vào raw_script
+            if "{" in raw_script and ("scene_index" in raw_script or "srt_script" in raw_script):
+                dict_m = re.search(r"['\"]srt_script['\"]\s*:\s*['\"]([^'\"]+)['\"]", raw_script)
+                if dict_m:
+                    raw_script = dict_m.group(1).strip()
+                else:
+                    raw_script = re.sub(r"\{[^{}]*\}", "", raw_script).strip()
 
             scene_sfx_filename: Optional[str] = None
 
@@ -421,6 +432,68 @@ class PlanCreatorEngine:
             .replace("{schema_repr}", schema_repr)
         )
 
+    @staticmethod
+    def _normalize_scenes_list(raw_scenes: Any) -> List[Dict[str, Any]]:
+        """Chuẩn hóa danh sách scenes, tự động bóc tách nếu AI trả về chuỗi dict lồng/gộp."""
+        if not raw_scenes:
+            return []
+
+        if isinstance(raw_scenes, dict):
+            raw_scenes = [raw_scenes]
+        elif isinstance(raw_scenes, str):
+            raw_scenes = [raw_scenes]
+        elif not isinstance(raw_scenes, (list, tuple)):
+            return []
+
+        normalized: List[Dict[str, Any]] = []
+
+        for item in raw_scenes:
+            if isinstance(item, dict):
+                normalized.append(item)
+            elif isinstance(item, str):
+                item_str = item.strip()
+                if not item_str:
+                    continue
+
+                extracted_dicts: List[Dict[str, Any]] = []
+                # Kiểm tra nếu chuỗi chứa cấu trúc dict (ví dụ: {'scene_index': ...} hoặc {"scene_index": ...})
+                if "{" in item_str and "}" in item_str:
+                    dict_pattern = re.compile(r"\{[^{}]*\}")
+                    for m in dict_pattern.finditer(item_str):
+                        block = m.group(0).strip()
+                        # 1. Thử parse qua ast.literal_eval (hỗ trợ nháy đơn của Python dict)
+                        try:
+                            val = ast.literal_eval(block)
+                            if isinstance(val, dict):
+                                extracted_dicts.append(val)
+                                continue
+                        except Exception:
+                            pass
+                        # 2. Thử parse qua json.loads
+                        try:
+                            val = json.loads(block)
+                            if isinstance(val, dict):
+                                extracted_dicts.append(val)
+                                continue
+                        except Exception:
+                            pass
+
+                if extracted_dicts:
+                    normalized.extend(extracted_dicts)
+                else:
+                    normalized.append({
+                        "title": item_str[:30],
+                        "sub_title": "",
+                        "srt_script": item_str,
+                        "transition": "fade",
+                    })
+
+        for idx, sc in enumerate(normalized, start=1):
+            if isinstance(sc, dict):
+                sc.setdefault("scene_index", idx)
+
+        return normalized
+
     def _extract_single_script_data(
         self,
         raw_result: Dict[str, Any],
@@ -439,21 +512,26 @@ class PlanCreatorEngine:
                 target = raw_result["scripts"][0]
             if isinstance(target, dict):
                 target.setdefault("script_id", script_index)
+                target["scenes"] = self._normalize_scenes_list(target.get("scenes"))
                 return target
 
         # 2. Nếu AI trả về trực tiếp Single Script Object chứa 'scenes'
         if "scenes" in raw_result and isinstance(raw_result["scenes"], list):
             raw_result.setdefault("script_id", script_index)
+            raw_result["scenes"] = self._normalize_scenes_list(raw_result.get("scenes"))
             return raw_result
 
         # 3. Duyệt tìm object con chứa 'scenes'
         for v in raw_result.values():
             if isinstance(v, dict) and "scenes" in v:
                 v.setdefault("script_id", script_index)
+                v["scenes"] = self._normalize_scenes_list(v.get("scenes"))
                 return v
 
         # 4. Fallback an toàn cho mock hoặc custom payload
         raw_result.setdefault("script_id", script_index)
+        if "scenes" in raw_result:
+            raw_result["scenes"] = self._normalize_scenes_list(raw_result.get("scenes"))
         return raw_result
 
     def _execute_with_rotation(
