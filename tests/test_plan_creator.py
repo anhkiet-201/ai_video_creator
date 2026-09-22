@@ -18,6 +18,7 @@ if str(BASE_DIR) not in sys.path:
 
 from app.services.key_rotator import KeyRotator
 from app.services.plan_creator import (
+    DEFAULT_JSON_STRUCTURE,
     DEFAULT_SYSTEM_PROMPT,
     DEFAULT_USER_PROMPT_TEMPLATE,
     EmptyContentError,
@@ -440,18 +441,15 @@ def test_user_prompt_template_and_sync():
     # Kiểm tra User Prompt Template tuân thủ DRY: không lặp lại luật, chỉ chứa placeholder và chỉ thị thực thi
     user_template_required_elements = [
         "{content_str}",
-        "{num_scripts}",
+        "{script_index}",
+        "{total_scripts}",
         "{styles_instruction}",
         "{sound_effects_instruction}",
         "{schema_repr}",
-        "zero hallucination",
-        "phonetic",
-        "zero emojis",
-        "5-pillar",
-        "accented vietnamese",
     ]
     for elem in user_template_required_elements:
-        assert elem.lower() in DEFAULT_USER_PROMPT_TEMPLATE.lower(), f"Thiếu thành phần '{elem}' trong DEFAULT_USER_PROMPT_TEMPLATE"
+        assert elem in DEFAULT_USER_PROMPT_TEMPLATE, f"Thiếu placeholder '{elem}' trong DEFAULT_USER_PROMPT_TEMPLATE"
+    assert len(DEFAULT_USER_PROMPT_TEMPLATE) < 1500
 
     # 2. Kiểm tra fallback khi user_prompt_template=None
     config_default = PlanCreatorConfig(
@@ -510,11 +508,10 @@ def test_ffmpeg_transitions_completeness():
     for trans in expected_samples:
         assert trans in FFMPEG_TRANSITIONS, f"Hiệu ứng {trans} phải có mặt trong FFMPEG_TRANSITIONS!"
 
-    # 3. Kiểm tra sự hiện diện trong DEFAULT_SYSTEM_PROMPT và DEFAULT_USER_PROMPT_TEMPLATE
+    # 3. Kiểm tra sự hiện diện trong DEFAULT_SYSTEM_PROMPT và DEFAULT_JSON_STRUCTURE
     assert "transition" in DEFAULT_SYSTEM_PROMPT
     assert "58" in DEFAULT_SYSTEM_PROMPT
-    assert "transition" in DEFAULT_USER_PROMPT_TEMPLATE
-    assert "FFmpeg xfade" in DEFAULT_USER_PROMPT_TEMPLATE
+    assert "transition" in DEFAULT_JSON_STRUCTURE["scenes"][0]
 
     print("-> PASS: test_ffmpeg_transitions_completeness")
 
@@ -557,11 +554,13 @@ def test_platform_policy_compliance_and_slang_rules():
     for concept in policy_3_concepts:
         assert concept.lower() in DEFAULT_SYSTEM_PROMPT.lower(), f"Thiếu concept phong cách '{concept}' trong DEFAULT_SYSTEM_PROMPT"
 
-    # 4. Kiểm tra User Prompt tham chiếu tuân thủ 5-Pillar instructions
-    assert "5-pillar" in DEFAULT_USER_PROMPT_TEMPLATE.lower()
-    assert "zero hallucination" in DEFAULT_USER_PROMPT_TEMPLATE.lower()
-    assert "zero gender" in DEFAULT_USER_PROMPT_TEMPLATE.lower()
-    assert "zero age" in DEFAULT_USER_PROMPT_TEMPLATE.lower()
+    # 4. Kiểm tra System Prompt chứa đầy đủ 5 trụ cột và các chính sách an toàn
+    assert "pillar" in DEFAULT_SYSTEM_PROMPT.lower()
+    assert "zero hallucination" in DEFAULT_SYSTEM_PROMPT.lower()
+    assert "zero gender" in DEFAULT_SYSTEM_PROMPT.lower()
+    assert "zero age" in DEFAULT_SYSTEM_PROMPT.lower()
+    # Kiểm tra User Prompt tham chiếu tuân thủ System Prompt
+    assert "system prompt" in DEFAULT_USER_PROMPT_TEMPLATE.lower()
 
     print("-> PASS: test_platform_policy_compliance_and_slang_rules")
 
@@ -589,9 +588,10 @@ def test_valid_emotion_tags_and_strict_whitelist():
     for kw in anti_hallucination_kw:
         assert kw in DEFAULT_SYSTEM_PROMPT, f"Thiếu keyword '{kw}' trong DEFAULT_SYSTEM_PROMPT"
 
-    # Kiểm tra User Prompt Template chỉ thị tuân thủ thẻ cảm xúc & sound effects
-    assert "audio emotion tags" in DEFAULT_USER_PROMPT_TEMPLATE
-    assert "sound effects rules" in DEFAULT_USER_PROMPT_TEMPLATE
+    # Kiểm tra System Prompt và User Prompt về thẻ âm thanh & sound effects
+    assert "emotion tag" in DEFAULT_SYSTEM_PROMPT.lower()
+    assert "sound effect" in DEFAULT_SYSTEM_PROMPT.lower()
+    assert "{sound_effects_instruction}" in DEFAULT_USER_PROMPT_TEMPLATE
 
     print("-> PASS: test_valid_emotion_tags_and_strict_whitelist")
 
@@ -791,12 +791,13 @@ def test_sensitive_rules_module_and_random_choice():
     assert clean_sensitive_text("Dùng súng bắn đinh") == "Dùng bắn đinh"
     assert clean_sensitive_text("Cầm súng đi làm") == "Cầm đi làm"
 
-    # 2. Quy tắc năm sinh & thiếu tháng
-    assert clean_sensitive_text("Nhận thiếu tháng từ 2008") == "tất cả anh em"
+    # 2. Quy tắc năm sinh & thiếu tháng (thay bằng trung tính 'mọi người', không tiêm đại từ xưng hô cứng)
+    assert clean_sensitive_text("Nhận thiếu tháng từ 2008") == "mọi người"
     assert "2008" not in clean_sensitive_text("Sinh năm 2008 hoặc 2k8")
     assert "2k8" not in clean_sensitive_text("Sinh năm 2008 hoặc 2k8")
 
-    # 3. Quy tắc tiền tệ & mức lương tự nhiên (không từ ngữ ngô nghê hay cờ bạc)
+    # 3. Quy tắc tiền tệ & mức lương tự nhiên (không từ ngữ ngô nghê hay cờ bạc, không lặp 'lúa lúa')
+    assert clean_sensitive_text("Tiền lương 240k ngày công") == "lúa 240 cành ngày công"
     assert clean_sensitive_text("Lương 240k ngày công") == "lúa 240 cành ngày công"
     assert clean_sensitive_text("Tăng ca 40 nghìn một giờ") == "Tăng ca 40 cành một giờ"
     assert clean_sensitive_text("Tiền tăng ca 40 nghìn một giờ") == "lúa tăng ca 40 cành một giờ"
@@ -811,6 +812,76 @@ def test_sensitive_rules_module_and_random_choice():
     assert "CÔNG VIỆC" in t2 or "VIỆC LÀM" in t2
 
     print("-> PASS: test_sensitive_rules_module_and_random_choice")
+
+
+def test_meta_directive_reasoning_and_zero_parroting_prompts():
+    """Kiểm tra prompts chứa đầy đủ các quy tắc tiếp nhận động, chống rò rỉ chỉ dẫn và xưng hô bất biến."""
+    from app.services.plan_creator.prompts import (
+        DEFAULT_SYSTEM_PROMPT,
+        DEFAULT_USER_PROMPT_TEMPLATE,
+        DEFAULT_JSON_STRUCTURE,
+    )
+
+    # 1. System prompt chứa quy tắc phân tầng ngữ nghĩa tự nhiên & chống rò rỉ chỉ thị
+    assert "DYNAMIC DIRECTIVE INGESTION & STRICT PRONOUN CONSISTENCY" in DEFAULT_SYSTEM_PROMPT
+    assert "DYNAMIC EMOTION & TONE ADAPTATION (ZERO HARDCODING)" in DEFAULT_SYSTEM_PROMPT
+    assert "STRICT SINGLE PRONOUN PAIR CONSISTENCY (ZERO PRONOUN DRIFT)" in DEFAULT_SYSTEM_PROMPT
+    assert "SEMANTIC LAYER DISTINCTION" in DEFAULT_SYSTEM_PROMPT
+    assert "CONTENT-DRIVEN HOOK & ZERO ACTION PARROTING (ZERO EXAMPLES)" in DEFAULT_SYSTEM_PROMPT
+    assert "CONTENT-DRIVEN REVELATION" in DEFAULT_SYSTEM_PROMPT
+    assert "STRICT BAN ON VOCAL ACTION DIALOGUE" in DEFAULT_SYSTEM_PROMPT
+    assert "ZERO PROMPT LEAKAGE & STRICT BAN ON VERBATIM PARROTING" in DEFAULT_SYSTEM_PROMPT
+    assert "Zero Prompt Leakage" in DEFAULT_SYSTEM_PROMPT
+
+    # 2. Đảm bảo KHÔNG có bất kỳ chuỗi ví dụ cụ thể / hardcode nào xuất hiện trong prompt
+    assert "tinh nghịch" not in DEFAULT_SYSTEM_PROMPT
+    assert "plot twist" not in DEFAULT_SYSTEM_PROMPT
+    assert "các mom ơi" not in DEFAULT_SYSTEM_PROMPT
+    assert "tụi bây ơi" not in DEFAULT_SYSTEM_PROMPT
+    assert "nghe tao hét lên" not in DEFAULT_SYSTEM_PROMPT
+    assert "tao đang khóc nè" not in DEFAULT_SYSTEM_PROMPT
+    assert "xỉu ngang" not in DEFAULT_SYSTEM_PROMPT
+    assert "Ủa alo" not in DEFAULT_SYSTEM_PROMPT
+    assert "screw fastening" not in DEFAULT_SYSTEM_PROMPT
+    assert "rattan weaving" not in DEFAULT_SYSTEM_PROMPT
+
+    # 3. User prompt tham chiếu System Prompt và JSON Structure schema ghi rõ cấm prompt leakage và bắt buộc đồng nhất đại từ
+    assert "system prompt" in DEFAULT_USER_PROMPT_TEMPLATE.lower()
+    assert "Dynamic Hook Ingestion" in DEFAULT_USER_PROMPT_TEMPLATE
+    assert "Strictly NEVER have the speaker command the listener to hear them scream" in DEFAULT_USER_PROMPT_TEMPLATE
+
+    # 4. JSON Structure schema ghi rõ cấm prompt leakage / parroting và bắt buộc đồng nhất đại từ
+    srt_desc = DEFAULT_JSON_STRUCTURE["scenes"][0]["srt_script"]
+    assert "zero prompt leakage" in srt_desc
+    assert "strict single pronoun pair consistency" in srt_desc
+
+    print("-> PASS: test_meta_directive_reasoning_and_zero_parroting_prompts")
+
+
+def test_unbroken_narrative_continuity_prompts():
+    """Kiểm tra prompts chứa đầy đủ các quy tắc mạch tự sự liền mạch và chuyển tiếp liên hoàn giữa các scene."""
+    from app.services.plan_creator.prompts import (
+        DEFAULT_SYSTEM_PROMPT,
+        DEFAULT_USER_PROMPT_TEMPLATE,
+        DEFAULT_JSON_STRUCTURE,
+    )
+
+    # 1. System prompt chứa quy tắc Unbroken Monologue & Narrative Continuity
+    assert "UNBROKEN MONOLOGUE & NARRATIVE CONTINUITY" in DEFAULT_SYSTEM_PROMPT
+    assert "SINGLE CONTINUOUS STREAM" in DEFAULT_SYSTEM_PROMPT
+    assert "CHRONOLOGICAL PROGRESSION" in DEFAULT_SYSTEM_PROMPT
+    assert "MANDATORY CONNECTIVE BRIDGING" in DEFAULT_SYSTEM_PROMPT
+    assert "STRICT BAN ON DISJOINTED RESTARTS" in DEFAULT_SYSTEM_PROMPT
+    assert "THE CONTINUOUS READING TEST" in DEFAULT_SYSTEM_PROMPT
+
+    # 2. User prompt templates chứa tham chiếu mạch tự sự unbroken monologue
+    assert "unbroken monologue" in DEFAULT_USER_PROMPT_TEMPLATE.lower()
+
+    # 3. JSON Schemas quy định rõ tính nối tiếp mạch lạc của srt_script
+    srt_desc = DEFAULT_JSON_STRUCTURE["scenes"][0]["srt_script"]
+    assert "strict narrative continuity with preceding scene" in srt_desc
+
+    print("-> PASS: test_unbroken_narrative_continuity_prompts")
 
 
 if __name__ == "__main__":
@@ -832,6 +903,8 @@ if __name__ == "__main__":
     test_sanitize_script_tags_removes_emojis_and_unpronounceable_chars()
     test_sanitize_script_tags_removes_gun_and_sensitive_words()
     test_sensitive_rules_module_and_random_choice()
+    test_meta_directive_reasoning_and_zero_parroting_prompts()
+    test_unbroken_narrative_continuity_prompts()
     print("\n==================================================")
     print(" TOÀN BỘ UNIT TESTS CỦA PLAN CREATOR ĐÃ VƯỢT QUA! ")
     print("==================================================")

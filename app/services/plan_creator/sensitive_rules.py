@@ -16,23 +16,25 @@ SENSITIVE_REPLACEMENTS: Dict[Tuple[str, ...], List[str]] = {
     (r"(?i)\bsúng\b",): [""],
 
     # 2. Độ tuổi & Năm sinh (Bảo vệ chính sách lao động vị thành niên)
-    (r"(?i)\b(?:ai\s+)?đủ\s*tuổi\s*lao\s*động(?:\s+từ\s+18(?:\s*tuổi)?\s*trở\s*lên)?\b",): ["tất cả anh em"],
-    (r"(?i)\b(?:từ\s*)?18(?:\s*tuổi)?\s*trở\s*lên\b",): ["tất cả mọi người"],
-    (r"(?i)\b(?:nhận\s+)?thiếu\s*tháng(?:\s+từ\s+200\d)?\b",): ["tất cả anh em"],
+    (r"(?i)\b(?:ai\s+)?đủ\s*tuổi\s*lao\s*động(?:\s+từ\s+18(?:\s*tuổi)?\s*trở\s*lên)?\b",): ["mọi người"],
+    (r"(?i)\b(?:từ\s*)?18(?:\s*tuổi)?\s*trở\s*lên\b",): ["mọi người"],
+    (r"(?i)\b(?:nhận\s+)?thiếu\s*tháng(?:\s+từ\s+200\d)?\b",): ["mọi người"],
     (r"(?i)\b(?:sinh\s+năm|năm\s+sinh|(?:sinh\s+)?(?:năm\s+)?(?:từ\s+)?200\d|2k\d)\b",): [""],
 
     # 3. Đơn vị tiền tệ & Số tiền
     (r"(?i)(?<=\d)\s*k\b", r"(?i)\b(?:ngàn|nghìn|ngìn)\b",): [" cành", " cá", " ca"],
+    (r"(?i)\b(?:triệu)\b",): ["củ", "khoai"],
 
     # 4. Tiền bạc & Mức lương cốt lõi (Tự động làm sạch mọi cụm ghép với tiền/lương)
     (r"(?i)\bxoay\s*vòng\s*vốn\b",): ["chi tiêu"],
+    (r"(?i)\b(?:tiền\s*lương|mức\s*lương|thu\s*nhập)\b",): ["lúa"],
     (r"(?i)\blương(?!\s*(?:tâm|thực|tháng))\b",): ["lúa"],
     (r"(?i)\btiền\b",): ["lúa"],
 
     # 5. Điều hướng tuyển dụng & Giới tính
     (r"(?i)\bứng\s*tuyển\b",): ["nhận việc"],
     (r"(?i)\btuyển(?:\s*(?:dụng|gấp|thêm))?\b",): ["tìm người"],
-    (r"(?i)\bnam\s*/?\s*nữ\b",): ["tất cả anh em"],
+    (r"(?i)\bnam\s*/?\s*nữ\b",): ["mọi người"],
 
     # 6. Lao động
     (r"(?i)\bcày\s*cuốc\b",): ["tăng ca"],

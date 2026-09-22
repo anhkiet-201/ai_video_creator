@@ -378,6 +378,8 @@ class PlanCreatorEngine:
         return (
             template
             .replace("{content_str}", content_str)
+            .replace("{script_index}", "1")
+            .replace("{total_scripts}", str(num_scripts))
             .replace("{num_scripts}", str(num_scripts))
             .replace("{styles_instruction}", styles_instruction)
             .replace("{sound_effects_instruction}", sound_effects_instruction)
