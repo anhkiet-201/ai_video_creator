@@ -554,7 +554,21 @@ def test_platform_policy_compliance_and_slang_rules():
     for concept in policy_3_concepts:
         assert concept.lower() in DEFAULT_SYSTEM_PROMPT.lower(), f"Thiếu concept phong cách '{concept}' trong DEFAULT_SYSTEM_PROMPT"
 
-    # 4. Kiểm tra System Prompt chứa đầy đủ 5 trụ cột và các chính sách an toàn
+    # 4. Kiểm tra Policy Review Công Ty: Cấm tuyển dụng, việc làm, lôi kéo và tài chính
+    review_concepts = [
+        "company review",
+        "workplace review",
+        "zero recruitment",
+        "zero solicitation",
+        "zero finance",
+    ]
+    for concept in review_concepts:
+        assert concept.lower() in DEFAULT_SYSTEM_PROMPT.lower(), f"Thiếu concept review '{concept}' trong DEFAULT_SYSTEM_PROMPT"
+
+    assert "sharing real job opportunities" not in DEFAULT_SYSTEM_PROMPT.lower()
+    assert "compensation mention" not in DEFAULT_SYSTEM_PROMPT.lower()
+
+    # 5. Kiểm tra System Prompt chứa đầy đủ 5 trụ cột và các chính sách an toàn
     assert "pillar" in DEFAULT_SYSTEM_PROMPT.lower()
     assert "zero hallucination" in DEFAULT_SYSTEM_PROMPT.lower()
     assert "zero gender" in DEFAULT_SYSTEM_PROMPT.lower()
@@ -738,7 +752,7 @@ def test_sanitize_script_tags_removes_gun_and_sensitive_words():
     # Kiểm tra sub_title không còn 'súng'
     assert "súng" not in scene["sub_title"].lower(), f"Từ 'súng' vẫn còn trong sub_title: {scene['sub_title']}"
 
-    # Kiểm tra srt_script không còn 'súng', 'cày cuốc', 'xoay vòng vốn', 'ứng tuyển', 'tuyển dụng', 'vào việc ngay', '2008', 'nghìn', 'ngàn', 'k'
+    # Kiểm tra srt_script không còn 'súng', 'cày cuốc', 'xoay vòng vốn', 'ứng tuyển', 'tuyển dụng', 'vào việc ngay', '2008', 'nghìn', 'ngàn', 'k', 'lương', 'lúa', 'cành'
     srt_text = scene["srt_script"]
     assert "súng" not in srt_text.lower(), f"Từ 'súng' vẫn còn trong srt_script: {srt_text}"
     assert "bắn vít" in srt_text.lower(), f"Kỳ vọng 'bắn vít' trong srt_script: {srt_text}"
@@ -747,14 +761,12 @@ def test_sanitize_script_tags_removes_gun_and_sensitive_words():
     assert "ứng tuyển" not in srt_text.lower(), f"Từ 'ứng tuyển' vẫn còn trong srt_script: {srt_text}"
     assert "tuyển dụng" not in srt_text.lower(), f"Từ 'tuyển dụng' vẫn còn trong srt_script: {srt_text}"
     assert "vào việc ngay" not in srt_text.lower(), f"Cụm từ 'vào việc ngay' không nên xuất hiện: {srt_text}"
-    assert "nhận việc" in srt_text.lower(), f"Kỳ vọng 'nhận việc' trong srt_script: {srt_text}"
-    assert "tìm người" in srt_text.lower(), f"Kỳ vọng 'tìm người' trong srt_script: {srt_text}"
+    assert "tìm người" not in srt_text.lower(), f"Cụm 'tìm người' không nên xuất hiện: {srt_text}"
     assert "2008" not in srt_text, f"Năm sinh 2008 vẫn còn trong srt_script: {srt_text}"
-    assert "nghìn" not in srt_text.lower(), f"Từ 'nghìn' chưa được chuyển sang 'cành': {srt_text}"
-    assert "ngàn" not in srt_text.lower(), f"Từ 'ngàn' chưa được chuyển sang 'cành': {srt_text}"
-    assert "240k" not in srt_text.lower(), f"Cụm '240k' chưa được chuyển sang '240 cành': {srt_text}"
-    assert "240 cành" in srt_text.lower(), f"Kỳ vọng '240 cành' trong srt_script: {srt_text}"
-    assert "40 cành" in srt_text.lower(), f"Kỳ vọng '40 cành' trong srt_script: {srt_text}"
+    assert "lương" not in srt_text.lower(), f"Từ 'lương' vẫn còn trong srt_script: {srt_text}"
+    assert "lúa" not in srt_text.lower(), f"Từ 'lúa' không nên xuất hiện: {srt_text}"
+    assert "cành" not in srt_text.lower(), f"Từ 'cành' không nên xuất hiện: {srt_text}"
+    assert "240k" not in srt_text.lower(), f"Cụm '240k' chưa được làm sạch: {srt_text}"
 
     print("-> PASS: test_sanitize_script_tags_removes_gun_and_sensitive_words")
 
@@ -796,20 +808,24 @@ def test_sensitive_rules_module_and_random_choice():
     assert "2008" not in clean_sensitive_text("Sinh năm 2008 hoặc 2k8")
     assert "2k8" not in clean_sensitive_text("Sinh năm 2008 hoặc 2k8")
 
-    # 3. Quy tắc tiền tệ & mức lương tự nhiên (không từ ngữ ngô nghê hay cờ bạc, không lặp 'lúa lúa')
-    assert clean_sensitive_text("Tiền lương 240k ngày công") == "lúa 240 cành ngày công"
-    assert clean_sensitive_text("Lương 240k ngày công") == "lúa 240 cành ngày công"
-    assert clean_sensitive_text("Tăng ca 40 nghìn một giờ") == "Tăng ca 40 cành một giờ"
-    assert clean_sensitive_text("Tiền tăng ca 40 nghìn một giờ") == "lúa tăng ca 40 cành một giờ"
-    assert clean_sensitive_text("Lương 200 ngàn") == "lúa 200 cành"
-    # 4. Quy tắc Title Safeguard: Cấm triệt để từ giật tít tiền bạc / lúa / lương trên tiêu đề video
+    # 3. Quy tắc tiền tệ & mức lương: Cấm hoàn toàn tài chính, không lách bằng 'lúa/cành/củ'
+    t_luong = clean_sensitive_text("Tiền lương 240k ngày công")
+    assert "lúa" not in t_luong.lower() and "cành" not in t_luong.lower() and "lương" not in t_luong.lower()
+    assert "240" in t_luong
+
+    t_tangca = clean_sensitive_text("Tăng ca 40 nghìn một giờ")
+    assert "cành" not in t_tangca.lower() and "nghìn" not in t_tangca.lower()
+
+    # 4. Quy tắc Title Safeguard: Cấm triệt để từ giật tít tiền bạc / lúa / lương / tuyển dụng / việc làm trên tiêu đề video
     t1 = clean_sensitive_text("LÃNH LƯƠNG 3 NGÀY 1 LẦN", uppercase=True)
     assert "LÚA" not in t1 and "LƯƠNG" not in t1 and "TIỀN" not in t1
-    assert "CÔNG VIỆC" in t1 or "VIỆC LÀM" in t1
+    assert "VIỆC LÀM" not in t1 and "CÔNG VIỆC" not in t1
+    assert "TRẢI NGHIỆM THỰC TẾ" in t1 or "MÔI TRƯỜNG" in t1
 
     t2 = clean_sensitive_text("LỊCH TRẢ LƯƠNG ĐỀU ĐẶN", uppercase=True)
     assert "LÚA" not in t2 and "LƯƠNG" not in t2 and "TIỀN" not in t2
-    assert "CÔNG VIỆC" in t2 or "VIỆC LÀM" in t2
+    assert "VIỆC LÀM" not in t2 and "CÔNG VIỆC" not in t2
+    assert "TRẢI NGHIỆM THỰC TẾ" in t2 or "MÔI TRƯỜNG" in t2
 
     print("-> PASS: test_sensitive_rules_module_and_random_choice")
 
@@ -825,7 +841,10 @@ def test_meta_directive_reasoning_and_zero_parroting_prompts():
     # 1. System prompt chứa quy tắc phân tầng ngữ nghĩa tự nhiên & chống rò rỉ chỉ thị
     assert "DYNAMIC DIRECTIVE INGESTION & STRICT PRONOUN CONSISTENCY" in DEFAULT_SYSTEM_PROMPT
     assert "DYNAMIC EMOTION & TONE ADAPTATION (ZERO HARDCODING)" in DEFAULT_SYSTEM_PROMPT
-    assert "STRICT SINGLE PRONOUN PAIR CONSISTENCY (ZERO PRONOUN DRIFT)" in DEFAULT_SYSTEM_PROMPT
+    assert "STRICT SINGLE PRONOUN PAIR CONSISTENCY" in DEFAULT_SYSTEM_PROMPT
+    assert "ZERO PRONOUN DRIFT" in DEFAULT_SYSTEM_PROMPT
+    assert "PRONOUN SPAM" in DEFAULT_SYSTEM_PROMPT
+    assert "3-6 REPEATING VOWELS" in DEFAULT_SYSTEM_PROMPT
     assert "SEMANTIC LAYER DISTINCTION" in DEFAULT_SYSTEM_PROMPT
     assert "CONTENT-DRIVEN HOOK & ZERO ACTION PARROTING (ZERO EXAMPLES)" in DEFAULT_SYSTEM_PROMPT
     assert "CONTENT-DRIVEN REVELATION" in DEFAULT_SYSTEM_PROMPT
@@ -833,22 +852,24 @@ def test_meta_directive_reasoning_and_zero_parroting_prompts():
     assert "ZERO PROMPT LEAKAGE & STRICT BAN ON VERBATIM PARROTING" in DEFAULT_SYSTEM_PROMPT
     assert "Zero Prompt Leakage" in DEFAULT_SYSTEM_PROMPT
 
-    # 2. Đảm bảo KHÔNG có bất kỳ chuỗi ví dụ cụ thể / hardcode nào xuất hiện trong prompt
-    assert "tinh nghịch" not in DEFAULT_SYSTEM_PROMPT
-    assert "plot twist" not in DEFAULT_SYSTEM_PROMPT
-    assert "các mom ơi" not in DEFAULT_SYSTEM_PROMPT
-    assert "tụi bây ơi" not in DEFAULT_SYSTEM_PROMPT
+    # 2. Đảm bảo Living Lexicon (lexicon.md) được nạp thành công và hỗ trợ đầy đủ các từ ngữ tự nhiên, trend
+    assert "PILLAR 6 — LIVING VIRAL LEXICON & TREND EXAMPLES" in DEFAULT_SYSTEM_PROMPT
+    assert "ủa alo" in DEFAULT_SYSTEM_PROMPT.lower()
+    assert "tụi bây ơi" in DEFAULT_SYSTEM_PROMPT.lower()
+    assert "các mom ơi" in DEFAULT_SYSTEM_PROMPT.lower()
+    assert "tinh nghịch" in DEFAULT_SYSTEM_PROMPT.lower()
+    assert "xỉu ngang" in DEFAULT_SYSTEM_PROMPT.lower()
+
+    # Đảm bảo KHÔNG có rò rỉ các ví dụ phi thực tế hoặc ngành nghề cụ thể bị gán cứng
     assert "nghe tao hét lên" not in DEFAULT_SYSTEM_PROMPT
     assert "tao đang khóc nè" not in DEFAULT_SYSTEM_PROMPT
-    assert "xỉu ngang" not in DEFAULT_SYSTEM_PROMPT
-    assert "Ủa alo" not in DEFAULT_SYSTEM_PROMPT
     assert "screw fastening" not in DEFAULT_SYSTEM_PROMPT
     assert "rattan weaving" not in DEFAULT_SYSTEM_PROMPT
 
     # 3. User prompt tham chiếu System Prompt và JSON Structure schema ghi rõ cấm prompt leakage và bắt buộc đồng nhất đại từ
     assert "system prompt" in DEFAULT_USER_PROMPT_TEMPLATE.lower()
-    assert "Dynamic Hook Ingestion" in DEFAULT_USER_PROMPT_TEMPLATE
-    assert "Strictly NEVER have the speaker command the listener to hear them scream" in DEFAULT_USER_PROMPT_TEMPLATE
+    assert "Dynamic Hook" in DEFAULT_USER_PROMPT_TEMPLATE
+    assert "Strictly NEVER command listener to hear screaming" in DEFAULT_USER_PROMPT_TEMPLATE
 
     # 4. JSON Structure schema ghi rõ cấm prompt leakage / parroting và bắt buộc đồng nhất đại từ
     srt_desc = DEFAULT_JSON_STRUCTURE["scenes"][0]["srt_script"]
@@ -915,6 +936,153 @@ def test_normalize_scenes_list_recovers_from_concatenated_string_dicts():
     print("-> PASS: test_normalize_scenes_list_recovers_from_concatenated_string_dicts")
 
 
+def test_hardened_pronoun_lock_and_trend_hook_grounding():
+    """Kiểm tra schema và prompt đảm bảo khóa chặt đại từ nhân xưng và chống bịa đặt chi tiết ngày lễ."""
+    from app.services.plan_creator.prompts import (
+        DEFAULT_JSON_STRUCTURE,
+        DEFAULT_SYSTEM_PROMPT,
+        DEFAULT_USER_PROMPT_TEMPLATE,
+    )
+
+    # 1. Kiểm tra trường cam kết selected_pronoun_pair ở cấp root của schema
+    assert "selected_pronoun_pair" in DEFAULT_JSON_STRUCTURE, (
+        "Schema phải chứa 'selected_pronoun_pair' để ép LLM cam kết cặp đại từ cố định!"
+    )
+
+    # 2. Kiểm tra chỉ dẫn chống pronoun drift trong sub_title và srt_script
+    scene_schema = DEFAULT_JSON_STRUCTURE["scenes"][0]
+    assert "selected_pronoun_pair" in scene_schema["sub_title"]
+    assert "selected_pronoun_pair" in scene_schema["srt_script"]
+
+    # 3. Kiểm tra quy tắc Trend & Holiday Hook Grounding và Vowel Elongation trong System Prompt
+    assert "TREND & HOLIDAY HOOK GROUNDING" in DEFAULT_SYSTEM_PROMPT
+    assert "ZERO FICTIONAL INVENTIONS" in DEFAULT_SYSTEM_PROMPT
+    assert "MANDATORY VOWEL ELONGATION FOR EMOTIONAL PEAKS" in DEFAULT_SYSTEM_PROMPT
+    assert "Intense Curiosity" in DEFAULT_SYSTEM_PROMPT
+
+    # 4. Kiểm tra User Prompt Template có ràng buộc khóa đại từ, vowel elongation và năng lượng leo thang
+    assert "selected_pronoun_pair" in DEFAULT_USER_PROMPT_TEMPLATE
+    assert "Strict Single Pronoun Lock" in DEFAULT_USER_PROMPT_TEMPLATE
+    assert "Dynamic Hook" in DEFAULT_USER_PROMPT_TEMPLATE
+    assert "real vowel" in DEFAULT_USER_PROMPT_TEMPLATE.lower()
+    assert "escalated higher" in DEFAULT_USER_PROMPT_TEMPLATE.lower()
+    assert len(DEFAULT_USER_PROMPT_TEMPLATE) < 1500
+
+    print("-> PASS: test_hardened_pronoun_lock_and_trend_hook_grounding")
+
+
+def test_natural_cadence_vowel_elongation_and_connective_bridging():
+    """Kiểm tra prompts thực thi nghiêm ngặt nhịp điệu đại từ tự nhiên (chống spam), kéo dài nguyên âm và cầu nối liên kết scene."""
+    from app.services.plan_creator.prompts import (
+        DEFAULT_JSON_STRUCTURE,
+        DEFAULT_SYSTEM_PROMPT,
+        DEFAULT_USER_PROMPT_TEMPLATE,
+    )
+
+    # 1. System Prompt: Chống lạm dụng đại từ, quy định rõ chỉ gọi 1-2 lần ở đầu hoặc cuối
+    assert "NATURAL CONVERSATIONAL CADENCE & STRICT BAN ON PRONOUN SPAM" in DEFAULT_SYSTEM_PROMPT
+    assert "Directly address the audience naturally around 1 to 2 times" in DEFAULT_SYSTEM_PROMPT
+    assert "STRICTLY FORBIDDEN to spam the listener pronoun mechanically" in DEFAULT_SYSTEM_PROMPT
+
+    # 2. System Prompt: Bắt buộc kéo dài nguyên âm 3-6 lần để biểu cảm kịch tính
+    assert "3-6 REPEATING VOWELS" in DEFAULT_SYSTEM_PROMPT
+    assert "actively elongate words by repeating vowels 3 to 6 times" in DEFAULT_SYSTEM_PROMPT
+
+    # 3. System Prompt: Cầu nối liên kết bắt buộc từ Scene 2 trở đi
+    assert "MANDATORY CONNECTIVE BRIDGING (SCENE 2 ONWARDS — ZERO INDEPENDENT BULLET POINTS)" in DEFAULT_SYSTEM_PROMPT
+    assert "ZERO INDEPENDENT BULLET POINTS" in DEFAULT_SYSTEM_PROMPT
+
+    # 4. JSON Schema: sub_title cấm spam đại từ
+    sub_title_desc = DEFAULT_JSON_STRUCTURE["scenes"][0]["sub_title"]
+    assert "STRICTLY FORBIDDEN to spam the listener pronoun in every subtitle" in sub_title_desc
+
+    # 5. User Prompt Template: Kiểm tra có đủ các chỉ dẫn cốt lõi
+    assert "zero pronoun spam" in DEFAULT_USER_PROMPT_TEMPLATE
+    assert "REAL VOWEL" in DEFAULT_USER_PROMPT_TEMPLATE
+    assert "connective bridges from Scene 2+" in DEFAULT_USER_PROMPT_TEMPLATE
+    assert len(DEFAULT_USER_PROMPT_TEMPLATE) < 1500
+
+    print("-> PASS: test_natural_cadence_vowel_elongation_and_connective_bridging")
+
+
+def test_sonic_jolt_opener_real_vowels_and_high_velocity_cadence():
+    """Kiểm tra prompts cấm triệt để mở đầu tản văn, cấm trò chơi chữ 'chữ ê kéo dài', và ép nhịp điệu kích động cao."""
+    from app.services.plan_creator.prompts import (
+        DEFAULT_SYSTEM_PROMPT,
+        DEFAULT_USER_PROMPT_TEMPLATE,
+    )
+
+    # 1. System Prompt: Cú sốc thính giác / cảm xúc ngay giây đầu, cấm mở đầu tản văn ru ngủ
+    assert "SONIC & EMOTIONAL JOLT OPENER" in DEFAULT_SYSTEM_PROMPT
+    assert "STRICT BAN ON DREAMY / ESSAY OPENERS" in DEFAULT_SYSTEM_PROMPT
+    assert "Trí tưởng tượng của..." in DEFAULT_SYSTEM_PROMPT
+    assert "Chắc mọi người tưởng..." in DEFAULT_SYSTEM_PROMPT
+
+    # 2. System Prompt: Cấm trò chơi chữ 'chữ ê kéo dài', bắt buộc kéo dài nguyên âm thực tế 3-6 lần
+    assert "STRICT BAN ON META-WORD PUNS (ZERO 'CHỮ Ê KÉO DÀI')" in DEFAULT_SYSTEM_PROMPT
+    assert "chữ ê kéo dài" in DEFAULT_SYSTEM_PROMPT.lower()
+    assert "kéo dài chữ ê" in DEFAULT_SYSTEM_PROMPT.lower()
+
+    # 3. System Prompt: Nhịp điệu dồn dập, cấm từ ngữ hạ nhiệt tản văn / dưỡng sinh
+    assert "HIGH-VELOCITY PUNCHY RHYTHM & ZERO LOW-ENERGY ATMOSPHERE" in DEFAULT_SYSTEM_PROMPT
+    assert "phòng trà" in DEFAULT_SYSTEM_PROMPT.lower()
+    assert "dưỡng sinh" in DEFAULT_SYSTEM_PROMPT.lower()
+    assert "chọn mặt gửi vàng" in DEFAULT_SYSTEM_PROMPT.lower()
+    assert "đời không như là mơ" in DEFAULT_SYSTEM_PROMPT.lower()
+
+    # 4. System Prompt: Kịch tính nghẹt thở, cấm từ ngữ than vãn uể oải và cấm thẻ thở dài làm tụt năng lượng
+    assert "HIGH-STAKES SUSPENSE & COMIC MELODRAMA (ZERO TIRED SLUMP)" in DEFAULT_SYSTEM_PROMPT
+    assert "STRICT BAN ON DEPRESSIVE & TIRED SLUMP PHRASES" in DEFAULT_SYSTEM_PROMPT
+    assert "gãy cái lưng" in DEFAULT_SYSTEM_PROMPT.lower()
+    assert "rã rời" in DEFAULT_SYSTEM_PROMPT.lower()
+    assert "dài đăng đặc" in DEFAULT_SYSTEM_PROMPT.lower()
+    assert "BAN ON SIGH" in DEFAULT_SYSTEM_PROMPT
+
+    # 5. User Prompt Template: Tích hợp đầy đủ chỉ dẫn kịch tính nghẹt thở, chống uể oải và cấm thở dài
+    assert "SONIC JOLT" in DEFAULT_USER_PROMPT_TEMPLATE
+    assert "HIGH-STAKES" in DEFAULT_USER_PROMPT_TEMPLATE
+    assert "zero [thở dài]" in DEFAULT_USER_PROMPT_TEMPLATE
+    assert "REAL VOWEL" in DEFAULT_USER_PROMPT_TEMPLATE
+    assert "meta-puns" in DEFAULT_USER_PROMPT_TEMPLATE
+    assert "PUNCHY" in DEFAULT_USER_PROMPT_TEMPLATE
+    assert "phòng trà/dưỡng sinh" in DEFAULT_USER_PROMPT_TEMPLATE
+    assert len(DEFAULT_USER_PROMPT_TEMPLATE) < 1500
+
+    print("-> PASS: test_sonic_jolt_opener_real_vowels_and_high_velocity_cadence")
+
+
+def test_dynamic_zero_finance_and_payout_frequency_firewall():
+    """Kiểm tra tường lửa cấm tài chính tổng quát động: cấm mọi chu kỳ thanh toán và từ ngữ tài chính, không hardcode."""
+    from app.services.plan_creator.prompts import (
+        DEFAULT_SYSTEM_PROMPT,
+        DEFAULT_USER_PROMPT_TEMPLATE,
+    )
+
+    # 1. System Prompt: Cấm triệt để tài chính và mọi chu kỳ thanh toán
+    assert "ZERO FINANCE" in DEFAULT_SYSTEM_PROMPT
+    assert "PAYOUT FREQUENCY" in DEFAULT_SYSTEM_PROMPT
+    assert "3 ngày/lần" in DEFAULT_SYSTEM_PROMPT
+    assert "chi trả công" in DEFAULT_SYSTEM_PROMPT
+    assert "dòng tiền" in DEFAULT_SYSTEM_PROMPT
+    assert "xoay xở" in DEFAULT_SYSTEM_PROMPT
+    assert "bạc" in DEFAULT_SYSTEM_PROMPT.lower()
+    assert "DROP 100% of financial, compensation, and payment schedule sections" in DEFAULT_SYSTEM_PROMPT
+
+    # 2. Không được hardcode tên cụ thể ngành nghề hay thiết bị trong prompt (đảm bảo tính tổng quát)
+    assert "máy hút bụi" not in DEFAULT_SYSTEM_PROMPT.lower()
+    assert "bắn súng vít" not in DEFAULT_SYSTEM_PROMPT.lower()
+    assert "đan lát" not in DEFAULT_SYSTEM_PROMPT.lower()
+
+    # 3. User Prompt Template: Chứa chỉ thị tường lửa Zero Finance
+    assert "ABSOLUTE ZERO FINANCE" in DEFAULT_USER_PROMPT_TEMPLATE
+    assert "3 ngày/lần" in DEFAULT_USER_PROMPT_TEMPLATE
+    assert "chi trả công" in DEFAULT_USER_PROMPT_TEMPLATE
+    assert "bạc" in DEFAULT_USER_PROMPT_TEMPLATE
+    assert "xoay xở" in DEFAULT_USER_PROMPT_TEMPLATE
+
+    print("-> PASS: test_dynamic_zero_finance_and_payout_frequency_firewall")
+
+
 if __name__ == "__main__":
     test_invalid_num_scripts()
     test_empty_content_raises_empty_content_error()
@@ -937,7 +1105,12 @@ if __name__ == "__main__":
     test_meta_directive_reasoning_and_zero_parroting_prompts()
     test_unbroken_narrative_continuity_prompts()
     test_normalize_scenes_list_recovers_from_concatenated_string_dicts()
+    test_hardened_pronoun_lock_and_trend_hook_grounding()
+    test_natural_cadence_vowel_elongation_and_connective_bridging()
+    test_sonic_jolt_opener_real_vowels_and_high_velocity_cadence()
+    test_dynamic_zero_finance_and_payout_frequency_firewall()
     print("\n==================================================")
     print(" TOÀN BỘ UNIT TESTS CỦA PLAN CREATOR ĐÃ VƯỢT QUA! ")
     print("==================================================")
+
 

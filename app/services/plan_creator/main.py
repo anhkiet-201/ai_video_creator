@@ -35,7 +35,7 @@ def main():
         "-i",
         type=str,
         required=True,
-        help="Đường dẫn đến file JSON chứa thông tin tuyển dụng đã bóc tách (BẮT BUỘC)",
+        help="Đường dẫn đến file JSON chứa thông tin/bài viết về công ty cần review (BẮT BUỘC)",
     )
     parser.add_argument(
         "--api-keys",
@@ -103,9 +103,9 @@ def main():
     engine = PlanCreatorEngine(config)
 
     styles = [
-        "Góc nhìn hài hước / Gen Z đi làm",
-        "Góc nhìn flex đãi ngộ & công nghệ đỉnh cao (MacBook M-series, GPU A100)",
-        "Góc nhìn câu chuyện thử thách kỹ thuật chuyên nghiệp"
+        "Góc nhìn trải nghiệm môi trường làm việc thực tế",
+        "Góc nhìn đánh giá công nghệ, máy móc và quy mô doanh nghiệp",
+        "Góc nhìn tiện ích nội khu, cơ sở vật chất và văn hóa công ty"
     ]
 
     def on_plan_progress(idx: int, total: int, script: dict):

@@ -194,7 +194,7 @@ class PlanCreatorEngine:
         """Tạo duy nhất 1 kịch bản video từ nội dung văn bản (hoặc JSON) qua 1 request Gemini AI.
 
         Args:
-            content: Dữ liệu nội dung bài đăng/tin tuyển dụng (chuỗi văn bản hoặc dict).
+            content: Dữ liệu nội dung bài đăng/thông tin công ty cần review (chuỗi văn bản hoặc dict).
             script_index: Chỉ số thứ tự của kịch bản này (1-based, mặc định: 1).
             total_scripts: Tổng số kịch bản dự kiến tạo trong mẻ (mặc định: 1).
             creative_style: Phong cách/góc tiếp cận cụ thể cho kịch bản này (tùy chọn).
@@ -268,7 +268,7 @@ class PlanCreatorEngine:
         """Tạo danh sách các kịch bản video bằng cách gửi từng request Gemini cho mỗi kịch bản.
 
         Args:
-            content: Dữ liệu nội dung bài đăng/tin tuyển dụng (chuỗi văn bản hoặc dict).
+            content: Dữ liệu nội dung bài đăng/thông tin công ty cần review (chuỗi văn bản hoặc dict).
             num_scripts: Số lượng kịch bản cần tạo (mặc định: 1, phải > 0).
             creative_styles: Danh sách các phong cách/góc tiếp cận tùy chọn (ví dụ: ["Drama", "Hài hước"]).
             override_config: Cấu hình ghi đè nếu muốn thay đổi config lúc gọi hàm.

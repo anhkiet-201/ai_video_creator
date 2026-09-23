@@ -21,23 +21,25 @@ SENSITIVE_REPLACEMENTS: Dict[Tuple[str, ...], List[str]] = {
     (r"(?i)\b(?:nhận\s+)?thiếu\s*tháng(?:\s+từ\s+200\d)?\b",): ["mọi người"],
     (r"(?i)\b(?:sinh\s+năm|năm\s+sinh|(?:sinh\s+)?(?:năm\s+)?(?:từ\s+)?200\d|2k\d)\b",): [""],
 
-    # 3. Đơn vị tiền tệ & Số tiền
-    (r"(?i)(?<=\d)\s*k\b", r"(?i)\b(?:ngàn|nghìn|ngìn)\b",): [" cành", " cá", " ca"],
-    (r"(?i)\b(?:triệu)\b",): ["củ", "khoai"],
-
-    # 4. Tiền bạc & Mức lương cốt lõi (Tự động làm sạch mọi cụm ghép với tiền/lương)
-    (r"(?i)\bxoay\s*vòng\s*vốn\b",): ["chi tiêu"],
-    (r"(?i)\b(?:tiền\s*lương|mức\s*lương|thu\s*nhập)\b",): ["lúa"],
-    (r"(?i)\blương(?!\s*(?:tâm|thực|tháng))\b",): ["lúa"],
-    (r"(?i)\btiền\b",): ["lúa"],
-
-    # 5. Điều hướng tuyển dụng & Giới tính
-    (r"(?i)\bứng\s*tuyển\b",): ["nhận việc"],
-    (r"(?i)\btuyển(?:\s*(?:dụng|gấp|thêm))?\b",): ["tìm người"],
+    # 3. Loại bỏ lôi kéo người & điều hướng ứng tuyển
+    (r"(?i)\b(?:rủ\s*bạn(?:\s*bè)?(?:\s*cùng)?\s*(?:làm|đi\s*làm)|về\s*chung\s*đội|inbox\s*(?:để\s*)?nhận\s*việc|bình\s*luận\s*(?:để\s*)?nhận\s*việc|vào\s*việc\s*cùng\s*tụi\s*mình)\b",): ["cùng theo dõi"],
+    (r"(?i)\b(?:nộp\s*hồ\s*sơ|hồ\s*sơ\s*xin\s*việc|xin\s*việc|phỏng\s*vấn)\b",): ["tìm hiểu"],
+    (r"(?i)\b(?:ứng\s*tuyển|nhận\s*việc)\b",): ["trải nghiệm"],
+    (r"(?i)\btuyển(?:\s*(?:dụng|gấp|thêm|người))?\b",): ["khám phá"],
+    (r"(?i)\bviệc\s*làm\b",): ["môi trường làm việc"],
+    (r"(?i)\bcông\s*việc\b",): ["môi trường"],
     (r"(?i)\bnam\s*/?\s*nữ\b",): ["mọi người"],
 
-    # 6. Lao động
-    (r"(?i)\bcày\s*cuốc\b",): ["tăng ca"],
+    # 4. Giấy tờ cá nhân & PII (Bảo vệ thông tin cá nhân và chống cờ scam/fraud)
+    (r"(?i)\b(?:căn\s*cước\s*công\s*dân|căn\s*cước|cccd|cmnd|giấy\s*tờ\s*tùy\s*thân)\b",): [""],
+
+    # 5. Tiền bạc & Tài chính (Cấm triệt để 100%, không lách bằng tiếng lóng lúa/cành/củ/xị/thóc)
+    (r"(?i)\bxoay\s*vòng\s*vốn\b",): ["hoạt động"],
+    (r"(?i)\b(?:ứng\s*lương|tiền\s*lương|mức\s*lương|thu\s*nhập|lương(?!\s*(?:tâm|thực|tháng))|tiền|thóc\s*thật|thóc|lúa|cành|củ|xị(?:\s*rưỡi)?)\b",): [""],
+    (r"(?i)(?<=\d)\s*k\b", r"(?i)\b(?:ngàn|nghìn|ngìn|triệu)\b",): [""],
+
+    # 6. Lao động & áp lực
+    (r"(?i)\bcày\s*cuốc\b",): ["làm việc"],
 }
 
 # Cache biên dịch regex sẵn từ SENSITIVE_REPLACEMENTS để tối ưu hiệu năng
@@ -66,6 +68,17 @@ def clean_sensitive_text(text: str, uppercase: bool = False) -> str:
 
     result = text
 
+    if uppercase:
+        # Title Safeguard: Cấm triệt để từ giật tít tiền bạc / lương / tuyển dụng / việc làm trên tiêu đề lớn video
+        result = re.sub(
+            r"(?i)\b(?:lãnh\s+lúa|lãnh\s+tiền|lãnh\s+lương|trả\s+lúa|trả\s+lương|lịch\s+trả\s+lúa|lịch\s+trả\s+lương|lúa\s+ba\s+ngày(?:\s+một\s+lần)?|lúa\s+3\s+ngày(?:\s+1\s+lần)?)\b",
+            "TRẢI NGHIỆM THỰC TẾ",
+            result,
+        )
+        result = re.sub(r"(?i)\b(?:lúa|tiền|lương|thu\s*nhập)\b", "MÔI TRƯỜNG", result)
+        result = re.sub(r"(?i)\b(?:việc\s*làm|công\s*việc)\b", "MÔI TRƯỜNG", result)
+        result = re.sub(r"(?i)\b(?:tuyển\s*dụng|ứng\s*tuyển|nhận\s*việc|tìm\s*người)\b", "REVIEW", result)
+
     # Áp dụng lần lượt các luật regex đã compile từ SENSITIVE_REPLACEMENTS
     for pattern, replacement in _COMPILED_SENSITIVE_RULES:
         result = pattern.sub(replacement, result)
@@ -75,14 +88,6 @@ def clean_sensitive_text(text: str, uppercase: bool = False) -> str:
     result = re.sub(r"\s+", " ", result).strip()
 
     if uppercase:
-        # Title Safeguard: Cấm triệt để từ giật tít tiền bạc / lúa / lương trên tiêu đề lớn video
-        result = re.sub(
-            r"(?i)\b(?:lãnh\s+lúa|lãnh\s+tiền|lãnh\s+lương|trả\s+lúa|trả\s+lương|lịch\s+trả\s+lúa|lịch\s+trả\s+lương|lúa\s+ba\s+ngày(?:\s+một\s+lần)?|lúa\s+3\s+ngày(?:\s+1\s+lần)?)\b",
-            "CÔNG VIỆC",
-            result,
-        )
-        result = re.sub(r"(?i)\b(?:lúa|tiền|lương)\b", "VIỆC LÀM", result)
-        result = re.sub(r"\s+", " ", result).strip()
         return result.upper()
 
     return result
