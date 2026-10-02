@@ -42,7 +42,7 @@ assets/
 *.pem
 *.key
 config.json
-content.txt
+*.txt
 # Logs
 *.log
 logs/

@@ -1083,6 +1083,41 @@ def test_dynamic_zero_finance_and_payout_frequency_firewall():
     print("-> PASS: test_dynamic_zero_finance_and_payout_frequency_firewall")
 
 
+def test_interjection_diversity_and_anti_fixation_rules():
+    """Kiểm tra các quy tắc chống độc tôn 'Trời đất quỷ thần ơi' và đa dạng hóa 5 nhóm thán từ."""
+    from app.services.plan_creator.prompts import (
+        DEFAULT_SYSTEM_PROMPT,
+        DEFAULT_USER_PROMPT_TEMPLATE,
+        DEFAULT_JSON_STRUCTURE,
+    )
+
+    # 1. System Prompt chứa nguyên tắc Anti-Fixation và cấm mặc định Trời đất quỷ thần ơi
+    assert "ANTI-FIXATION & THEATRICAL INTERJECTION DIVERSITY" in DEFAULT_SYSTEM_PROMPT
+    assert "Strictly FORBIDDEN to repeatedly default to 'Trời đất quỷ thần ơi'" in DEFAULT_SYSTEM_PROMPT
+    assert "5 rich emotional categories" in DEFAULT_SYSTEM_PROMPT
+    assert "strictly NEVER default always to 'Trời đất quỷ thần ơi'" in DEFAULT_SYSTEM_PROMPT
+
+    # 2. Living Lexicon nạp đủ 5 nhóm cảm xúc và quy tắc chống độc quyền
+    assert "Strict Anti-Monopoly & Interjection Rotation Rule" in DEFAULT_SYSTEM_PROMPT
+    assert "Shock & Awe" in DEFAULT_SYSTEM_PROMPT
+    assert "Confusion & Disbelief" in DEFAULT_SYSTEM_PROMPT
+    assert "Startle & Close Call" in DEFAULT_SYSTEM_PROMPT
+    assert "Panic & High-Pace Venting" in DEFAULT_SYSTEM_PROMPT
+    assert "Delight & Relatable Relief" in DEFAULT_SYSTEM_PROMPT
+
+    # 3. Đảm bảo từ vi phạm quy tắc xưng hô không xuất hiện
+    assert "cứu taooo" not in DEFAULT_SYSTEM_PROMPT.lower()
+    assert "cứu tui vớiii" in DEFAULT_SYSTEM_PROMPT.lower()
+
+    # 4. User Prompt Template và JSON Structure có luật nhắc nhở
+    assert "Dynamic Interjections" in DEFAULT_USER_PROMPT_TEMPLATE
+    assert "Zero lazy defaulting to 'Trời đất quỷ thần ơi'" in DEFAULT_USER_PROMPT_TEMPLATE
+    srt_desc = DEFAULT_JSON_STRUCTURE["scenes"][0]["srt_script"]
+    assert "strictly zero lazy defaulting to 'Trời đất quỷ thần ơi'" in srt_desc
+
+    print("-> PASS: test_interjection_diversity_and_anti_fixation_rules")
+
+
 if __name__ == "__main__":
     test_invalid_num_scripts()
     test_empty_content_raises_empty_content_error()
@@ -1109,6 +1144,7 @@ if __name__ == "__main__":
     test_natural_cadence_vowel_elongation_and_connective_bridging()
     test_sonic_jolt_opener_real_vowels_and_high_velocity_cadence()
     test_dynamic_zero_finance_and_payout_frequency_firewall()
+    test_interjection_diversity_and_anti_fixation_rules()
     print("\n==================================================")
     print(" TOÀN BỘ UNIT TESTS CỦA PLAN CREATOR ĐÃ VƯỢT QUA! ")
     print("==================================================")

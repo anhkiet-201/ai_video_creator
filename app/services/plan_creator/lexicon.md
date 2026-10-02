@@ -32,20 +32,37 @@ This living document serves as the **Single Source of Truth** for narrative tone
 
 ---
 
-## 2. Theatrical & Outrageous Interjections (Extreme Comic Drama & Vowel Elongation)
+## 2. Theatrical & Outrageous Interjections (Situational Comic Drama & Vowel Elongation)
 
-Use these to dramatically hyperbolize everyday workplace realities with playful vowel elongation and viral comedic energy:
+> [!IMPORTANT]
+> **Strict Anti-Monopoly & Interjection Rotation Rule:** NEVER lazily default to `Trời đất quỷ thần ơi` or any single expression across scenes or scripts. Actively match the interjection to the exact emotional nuance of the scene (Shock, Confusion, Startle, Pace Panic, or Relief/Delight).
 
-- `Trời đất quỷ thần ơiii!` / `Trời cao đất dày ơiii!`
-- `Chèn ơiii là chèn!` / `Chèn đét ơi!`
-- `Áaaaa cứu taooo!` / `Úi giời ôi cứu tui vớiii!`
+### Nhóm 1: Sốc, Choáng ngợp & Đối lập kịch tính (Shock & Awe):
 - `Úi chồi ôi là trờiii!` / `Ối dồi ôi là trờiii!`
-- `Hú hồn chim én!` / `Hú vía bà con ơiii!`
+- `Chèn ơiii là chèn!` / `Chèn đét ơi!`
+- `Đứng hình 5 giây rồiii!` / `Ối giời đất mẹ ơiii!`
+- `Trời cao đất dày ơiii!` / `Trời đất quỷ thần ơiii!`
+
+### Nhóm 2: Hoang mang, Cạn lời & Bất ngờ nội quy (Confusion & Disbelief):
 - `Ủa alo gì dợ trời?!` / `Ủa alo có nghe lầm không zậy?!`
-- `Đứng hình 5 giây rồiii!` / `xỉu ngang xỉu dọc luôn á!`
-- `Ối giời đất mẹ ơiii!` / `Má ôi con lạy!`
-- `Cứu cái nết tui vớiii!` / `Trời phạt hay sao dợ trời?!`
-- `Đau cái đầu ghê á!` / `Gì dợ máaa?!`
+- `Gì dợ máaa?!` / `Ủa cái gì zạ trời?!`
+- `Ủa alo bình tĩnh bà con ơiii!` / `Có lộn không dợ?!`
+- `Đau cái đầu ghê á!` / `xỉu ngang xỉu dọc luôn á!`
+
+### Nhóm 3: Hú hồn, Giật mình & Thót tim (Startle & Close Call):
+- `Hú hồn chim én!` / `Hú vía bà con ơiii!`
+- `Hết hồn chưa bà con ơiii!` / `Hú vía thiệt chớ!`
+- `Thót tim bay màu luôn á!` / `Má ôi con lạy!`
+
+### Nhóm 4: Cầu cứu, Chạy đua tốc độ & Quá tải (Panic & High-Pace Venting):
+- `Áaaaa cứu tui vớiii!` / `Úi giời ôi cứu tui vớiii!`
+- `Cứu cái nết tui vớiii!` / `Cứu em phen này cả nhà ơiii!`
+- `Trời phạt hay sao dợ trời?!` / `Chạy rớt cái nết luôn á!`
+
+### Nhóm 5: Mê mẩn, Phê pha & Bất ngờ tích cực (Delight & Relatable Relief):
+- `Đã cái nư gì đâu áaa!` / `Sướnggg cái thân gì đâu á!`
+- `Mê xỉu ngang xỉu dọc luôn!` / `Phê tới bến luôn á!`
+- `Ấm cái bụng liền á!` / `Mát rười rượi sướng mê ly!`
 
 ---
 
