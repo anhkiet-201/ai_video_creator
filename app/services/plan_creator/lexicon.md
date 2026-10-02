@@ -38,9 +38,9 @@ This living document serves as the **Single Source of Truth** for narrative tone
 > **Strict Anti-Monopoly & Interjection Rotation Rule:** NEVER lazily default to `Trời đất quỷ thần ơi` or any single expression across scenes or scripts. Actively match the interjection to the exact emotional nuance of the scene (Shock, Confusion, Startle, Pace Panic, or Relief/Delight).
 
 ### Nhóm 1: Sốc, Choáng ngợp & Đối lập kịch tính (Shock & Awe):
-- `Úi chồi ôi là trờiii!` / `Ối dồi ôi là trờiii!`
-- `Chèn ơiii là chèn!` / `Chèn đét ơi!`
-- `Đứng hình 5 giây rồiii!` / `Ối giời đất mẹ ơiii!`
+- `Đứng hình 5 giây rồiii!` / `Chèn đét ơi!`
+- `Chèn ơiii là chèn!` / `Không thể tin nổi luôn!`
+- `Bật ngửa luôn á!` / `Muốn rớt cái hàm luôn!`
 - `Trời cao đất dày ơiii!` / `Trời đất quỷ thần ơiii!`
 
 ### Nhóm 2: Hoang mang, Cạn lời & Bất ngờ nội quy (Confusion & Disbelief):
