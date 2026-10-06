@@ -1118,6 +1118,43 @@ def test_interjection_diversity_and_anti_fixation_rules():
     print("-> PASS: test_interjection_diversity_and_anti_fixation_rules")
 
 
+def test_provider_dynamic_resolution_switch():
+    """Kiểm tra PlanCreatorEngine tự động chuyển đổi LLM Provider phù hợp với active_config."""
+    from app.services.llm import GeminiLLMProvider, LMStudioLLMProvider
+
+    engine = PlanCreatorEngine()
+    assert isinstance(engine.llm_provider, GeminiLLMProvider)
+
+    # 1. Chuyển sang LM Studio
+    lm_config = PlanCreatorConfig(
+        provider="lm_studio",
+        base_url="http://127.0.0.1:1234",
+        model_name="google/gemma-4-e2b",
+        system_prompt="Test system prompt",
+        json_structure={"title": "string"},
+    )
+    p1 = engine._resolve_llm_provider(lm_config)
+    assert isinstance(p1, LMStudioLLMProvider)
+    assert p1.base_url == "http://127.0.0.1:1234/v1"
+    assert p1.model_name == "google/gemma-4-e2b"
+    assert engine.llm_provider is p1
+
+    # 2. Chuyển ngược lại Gemini
+    gemini_config = PlanCreatorConfig(
+        provider="gemini",
+        model_name="gemini-2.5-flash",
+        api_keys=["AIzaSyDynamicTestKey123"],
+        system_prompt="Test system prompt",
+        json_structure={"title": "string"},
+    )
+    p2 = engine._resolve_llm_provider(gemini_config)
+    assert isinstance(p2, GeminiLLMProvider)
+    assert p2.model_name == "gemini-2.5-flash"
+    assert engine.llm_provider is p2
+
+    print("-> PASS: test_provider_dynamic_resolution_switch")
+
+
 if __name__ == "__main__":
     test_invalid_num_scripts()
     test_empty_content_raises_empty_content_error()
@@ -1145,6 +1182,7 @@ if __name__ == "__main__":
     test_sonic_jolt_opener_real_vowels_and_high_velocity_cadence()
     test_dynamic_zero_finance_and_payout_frequency_firewall()
     test_interjection_diversity_and_anti_fixation_rules()
+    test_provider_dynamic_resolution_switch()
     print("\n==================================================")
     print(" TOÀN BỘ UNIT TESTS CỦA PLAN CREATOR ĐÃ VƯỢT QUA! ")
     print("==================================================")

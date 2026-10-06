@@ -13,15 +13,23 @@ from app.services.content_extractor.exceptions import (
 )
 from app.services.content_extractor.models import ContentExtractorConfig
 from app.services.key_rotator import KeyRotator
+from app.services.llm import (
+    BaseLLMProvider,
+    LLMProviderError,
+    LLMQuotaExhaustedError,
+    LLMResponseParsingError,
+    create_llm_provider,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class ContentExtractorEngine:
-    """Engine chuyên trích xuất thông tin có cấu trúc từ tin tuyển dụng bằng Gemini AI.
+    """Engine chuyên trích xuất thông tin có cấu trúc từ tin tuyển dụng bằng LLM Provider.
 
     Đặc điểm kiến trúc:
-    - Nhận danh sách api_keys và tự động xoay vòng key khi gặp lỗi quota (429).
+    - Nhận danh sách api_keys và tự động xoay vòng key khi gặp lỗi quota (429) với Gemini.
+    - Hỗ trợ LM Studio và các mô hình cục bộ khác qua interface BaseLLMProvider.
     - Nhận system_prompt do caller cấu hình, không ép buộc prompt mặc định.
     - Nhận cấu trúc JSON (json_structure) linh hoạt theo yêu cầu nghiệp vụ.
     """
@@ -30,14 +38,80 @@ class ContentExtractorEngine:
         self,
         config: Optional[ContentExtractorConfig] = None,
         key_rotator: Optional[KeyRotator] = None,
+        llm_provider: Optional[BaseLLMProvider] = None,
     ):
         self.config = config
+        self._custom_llm_provider = llm_provider
+        self.llm_provider = llm_provider
+
         if key_rotator is not None:
             self.key_rotator = key_rotator
         elif config and config.api_keys:
             self.key_rotator = KeyRotator(config.api_keys)
         else:
             self.key_rotator = KeyRotator([])
+
+        if self.llm_provider is None:
+            provider_type = config.provider if config else "gemini"
+            model_name = config.model_name if config else "gemini-2.5-flash"
+            base_url = config.base_url if config else None
+            self.llm_provider = create_llm_provider(
+                provider_type=provider_type,
+                model_name=model_name,
+                api_keys=config.api_keys if config else None,
+                base_url=base_url,
+                key_rotator=self.key_rotator,
+            )
+
+    def _resolve_llm_provider(
+        self,
+        active_config: ContentExtractorConfig,
+        override_config: Optional[ContentExtractorConfig] = None,
+    ) -> BaseLLMProvider:
+        """Lấy provider thích hợp dựa trên active_config và self.llm_provider."""
+        if override_config and override_config.api_keys and hasattr(self, "key_rotator"):
+            if override_config.api_keys != self.key_rotator._keys:
+                self.key_rotator.set_keys(override_config.api_keys)
+
+        # 1. Nếu caller truyền custom provider (ví dụ mock trong unit tests), ưu tiên sử dụng
+        if self._custom_llm_provider is not None:
+            if hasattr(self._custom_llm_provider, "key_rotator"):
+                self._custom_llm_provider.key_rotator = self.key_rotator
+            if active_config.model_name:
+                self._custom_llm_provider.model_name = active_config.model_name
+            return self._custom_llm_provider
+
+        # 2. Kiểm tra nếu provider hiện tại đã đúng loại provider và cấu hình tương ứng
+        target_provider = (active_config.provider or "gemini").lower().strip()
+        current_provider = getattr(self.llm_provider, "provider_name", None)
+
+        if self.llm_provider is not None and current_provider == target_provider:
+            if target_provider == "lm_studio":
+                curr_base = getattr(self.llm_provider, "base_url", None)
+                target_base = active_config.base_url
+                if target_base and curr_base and target_base.rstrip("/").rstrip("/v1") != curr_base.rstrip("/").rstrip("/v1"):
+                    pass
+                else:
+                    if active_config.model_name:
+                        self.llm_provider.model_name = active_config.model_name
+                    return self.llm_provider
+            else:
+                if hasattr(self.llm_provider, "key_rotator"):
+                    self.llm_provider.key_rotator = self.key_rotator
+                if active_config.model_name:
+                    self.llm_provider.model_name = active_config.model_name
+                return self.llm_provider
+
+        # 3. Tạo mới provider theo đúng active_config
+        new_provider = create_llm_provider(
+            provider_type=target_provider,
+            model_name=active_config.model_name,
+            api_keys=active_config.api_keys,
+            base_url=active_config.base_url,
+            key_rotator=self.key_rotator,
+        )
+        self.llm_provider = new_provider
+        return new_provider
 
     def extract(
         self,
@@ -79,21 +153,22 @@ class ContentExtractorEngine:
             raise MissingJsonStructureError("json_structure không được để trống trong cấu hình!")
 
         # 3. Đồng bộ danh sách API Keys vào KeyRotator nếu có override
-        if override_config and override_config.api_keys:
-            self.key_rotator.set_keys(override_config.api_keys)
+        provider = self._resolve_llm_provider(active_config, override_config=override_config)
 
-        if not self.key_rotator.has_available_keys():
-            raise NoValidApiKeyError(
-                "Không tìm thấy Gemini API Key khả dụng hoặc danh sách api_keys rỗng. "
-                "Vui lòng cung cấp ít nhất một API Key hợp lệ."
-            )
+        if (active_config.provider or "").lower().strip() == "gemini":
+            rotator = getattr(provider, "key_rotator", self.key_rotator)
+            if not rotator or not rotator.has_available_keys():
+                raise NoValidApiKeyError(
+                    "Không tìm thấy Gemini API Key khả dụng hoặc danh sách api_keys rỗng. "
+                    "Vui lòng cung cấp ít nhất một API Key hợp lệ."
+                )
 
-        # 4. Xây dựng prompt & gọi Gemini AI có cơ chế xoay vòng key
+        # 4. Xây dựng prompt & gọi LLM Provider
         prompt_content = self._build_prompt_content(active_config, content.strip())
         return self._execute_with_rotation(active_config, prompt_content)
 
     def _build_prompt_content(self, config: ContentExtractorConfig, content: str) -> str:
-        """Xây dựng phần user contents gửi cho Gemini AI kèm cấu trúc JSON yêu cầu."""
+        """Xây dựng phần user contents gửi cho AI kèm cấu trúc JSON yêu cầu."""
         schema_repr = config.get_json_structure_str()
         return (
             f"NỘI DUNG TIN TUYỂN DỤNG CẦN PHÂN TÍCH VÀ BÓC TÁCH:\n"
@@ -110,76 +185,38 @@ class ContentExtractorEngine:
         config: ContentExtractorConfig,
         prompt_content: str,
     ) -> Dict[str, Any]:
-        """Thực hiện gọi API qua Google GenAI SDK với cơ chế xoay vòng key và bắt lỗi."""
-        last_error_reason: str = ""
+        """Thực hiện gọi API qua LLM Provider với cơ chế xoay vòng key và bắt lỗi chuẩn hóa."""
+        provider = self._resolve_llm_provider(config)
 
-        while self.key_rotator.has_available_keys():
-            current_key = self.key_rotator.get_current_key()
-            if not current_key:
-                break
-
-            masked_key = f"...{current_key[-6:]}" if len(current_key) >= 6 else current_key
-
-            try:
-                from google import genai
-                from google.genai import types
-
-                client = genai.Client(api_key=current_key)
-                response = client.models.generate_content(
-                    model=config.model_name,
-                    contents=prompt_content,
-                    config=types.GenerateContentConfig(
-                        system_instruction=config.system_prompt,
-                        response_mime_type="application/json",
-                        temperature=config.temperature,
-                    ),
+        if (config.provider or "").lower().strip() == "gemini":
+            rotator = getattr(provider, "key_rotator", self.key_rotator)
+            if not rotator or not rotator.has_available_keys():
+                raise NoValidApiKeyError(
+                    "Không tìm thấy Gemini API Key khả dụng hoặc danh sách api_keys rỗng. "
+                    "Vui lòng cung cấp ít nhất một API Key hợp lệ."
                 )
 
-                if response and response.text:
-                    return self._clean_and_parse_json(response.text)
-
-                last_error_reason = "Phản hồi từ Gemini API rỗng (response.text is empty)."
-                logger.warning(f"Phản hồi rỗng khi gọi model {config.model_name} với key {masked_key}")
-
-            except JSONParsingError:
-                # Lỗi định dạng JSON do AI sinh sai cú pháp
-                raise
-            except Exception as e:
-                err_msg = str(e)
-                last_error_reason = err_msg
-                logger.warning(f"Lỗi khi bóc tách nội dung với key {masked_key}: {err_msg}")
-                self.key_rotator.mark_key_failed(current_key, reason=err_msg)
-
-        raise NoValidApiKeyError(
-            f"Không thể bóc tách nội dung tin tuyển dụng bằng AI: Toàn bộ API Key trong danh sách đã bị lỗi quota hoặc hết hạn mức. "
-            f"Lỗi gần nhất: {last_error_reason}"
-        )
+        try:
+            return provider.generate_json(
+                prompt=prompt_content,
+                system_prompt=config.system_prompt,
+                temperature=config.temperature,
+            )
+        except LLMQuotaExhaustedError as e:
+            raise NoValidApiKeyError(str(e)) from e
+        except LLMResponseParsingError as e:
+            raise JSONParsingError(str(e)) from e
+        except LLMProviderError as e:
+            raise ContentExtractorError(str(e)) from e
 
     def _clean_and_parse_json(self, raw_text: str) -> Dict[str, Any]:
         """Làm sạch văn bản markdown và phân tích cú pháp chuỗi JSON an toàn."""
-        text = raw_text.strip()
-
-        # Loại bỏ markdown code fences nếu AI vô tình sinh ra (```json ... ```)
-        if text.startswith("```"):
-            lines = text.splitlines()
-            if lines and lines[0].startswith("```"):
-                lines = lines[1:]
-            if lines and lines[-1].startswith("```"):
-                lines = lines[:-1]
-            text = "\n".join(lines).strip()
-
-        # Tìm kiếm khối JSON hợp lệ nằm giữa cặp ngoặc nhọn ngoài cùng
-        match = re.search(r"(\{.*\})", text, re.DOTALL)
-        if match:
-            text = match.group(1).strip()
-
         try:
-            parsed = json.loads(text)
-            if not isinstance(parsed, dict):
-                raise JSONParsingError(
-                    f"Dữ liệu JSON trả về phải là một Object (dict), nhận được: {type(parsed).__name__}"
-                )
-            return parsed
-        except (json.JSONDecodeError, JSONParsingError) as e:
-            logger.error(f"Không thể parse JSON từ AI output: {text[:200]}... Lỗi: {e}")
+            if self.llm_provider:
+                return self.llm_provider.clean_and_parse_json(raw_text)
+            from app.services.llm.base import BaseLLMProvider
+            return BaseLLMProvider.clean_and_parse_json(self.llm_provider, raw_text)
+        except (LLMResponseParsingError, Exception) as e:
+            if isinstance(e, JSONParsingError):
+                raise
             raise JSONParsingError(f"Phản hồi từ AI không đúng định dạng JSON hợp lệ: {e}") from e

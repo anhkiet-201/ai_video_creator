@@ -1,18 +1,26 @@
 import json
 from typing import Any, Dict, List, Optional, Union
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class PlanCreatorConfig(BaseModel):
     """Mô hình cấu hình cho Plan Creator Engine."""
 
+    provider: str = Field(
+        default="gemini",
+        description="Loại LLM Provider sử dụng ('gemini' hoặc 'lm_studio')"
+    )
+    base_url: Optional[str] = Field(
+        default=None,
+        description="Địa chỉ API cho LM Studio (mặc định: http://localhost:1234/v1)"
+    )
     model_name: str = Field(
         default="gemini-2.5-flash",
-        description="Tên mô hình Gemini AI sử dụng để lên kịch bản video"
+        description="Tên mô hình LLM sử dụng để lên kịch bản video"
     )
     api_keys: List[str] = Field(
-        ...,
-        description="Danh sách các API keys khả dụng để xoay vòng"
+        default_factory=list,
+        description="Danh sách các API keys khả dụng để xoay vòng (bắt buộc khi dùng provider='gemini')"
     )
     system_prompt: str = Field(
         ...,
@@ -45,13 +53,22 @@ class PlanCreatorConfig(BaseModel):
         description="Cấu trúc JSON đầu ra cho 1 plan đơn lẻ. Nếu để None sẽ dùng DEFAULT_JSON_STRUCTURE."
     )
 
-    @field_validator("api_keys")
+    @field_validator("api_keys", mode="before")
     @classmethod
-    def validate_api_keys(cls, v: List[str]) -> List[str]:
-        cleaned = [k.strip() for k in v if isinstance(k, str) and k.strip()]
-        if not cleaned:
+    def validate_api_keys_raw(cls, v: Any) -> List[str]:
+        if v is None:
+            return []
+        if isinstance(v, str):
+            return [v.strip()] if v.strip() else []
+        if isinstance(v, (list, tuple, set)):
+            return [str(k).strip() for k in v if str(k).strip()]
+        return v
+
+    @model_validator(mode="after")
+    def validate_provider_keys(self) -> "PlanCreatorConfig":
+        if (self.provider or "").lower().strip() == "gemini" and not self.api_keys:
             raise ValueError("Danh sách api_keys không được để trống!")
-        return cleaned
+        return self
 
     @field_validator("system_prompt")
     @classmethod

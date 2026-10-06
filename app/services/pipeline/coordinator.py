@@ -234,9 +234,10 @@ class VideoCreationPipeline:
                 f"Lỗi Bước 1: Thư mục tư liệu '{source_dir}' không chứa file video hoặc ảnh hợp lệ nào!"
             )
 
-        # 1.3 Kiểm tra API Keys
+        # 1.3 Kiểm tra API Keys (chỉ bắt buộc với Gemini)
+        provider_name = getattr(input_data, "llm_provider", "gemini")
         valid_keys = self._resolve_api_keys(input_data.api_keys)
-        if not valid_keys:
+        if (provider_name or "").lower().strip() == "gemini" and not valid_keys:
             raise StepValidationError(
                 "Lỗi Bước 1: Không tìm thấy Gemini API Key khả dụng. "
                 "Vui lòng truyền vào danh sách api_keys hoặc thiết lập biến môi trường GEMINI_API_KEY."
@@ -265,6 +266,8 @@ class VideoCreationPipeline:
         api_keys: List[str],
         model_name: str = "gemini-3.5-flash-lite",
         creative_styles: Optional[List[str]] = None,
+        llm_provider: str = "gemini",
+        llm_base_url: Optional[str] = None,
         on_progress: Optional[ProgressCallback] = None,
     ) -> List[RoughScript]:
         """Bước 2: Sử dụng PlanCreatorEngine để tạo danh sách kịch bản thô trực tiếp từ nội dung người dùng."""
@@ -272,6 +275,8 @@ class VideoCreationPipeline:
             on_progress(2, f"Bước 2: Đang lên {num_videos} kịch bản thô trực tiếp từ nội dung người dùng...", None)
 
         config = PlanCreatorConfig(
+            provider=llm_provider,
+            base_url=llm_base_url,
             model_name=model_name,
             api_keys=api_keys,
             system_prompt=DEFAULT_PLAN_SYSTEM_PROMPT,
@@ -990,6 +995,8 @@ class VideoCreationPipeline:
                 num_videos=input_data.num_videos,
                 api_keys=api_keys,
                 model_name=input_data.model_name,
+                llm_provider=getattr(input_data, "llm_provider", "gemini"),
+                llm_base_url=getattr(input_data, "llm_base_url", None),
                 on_progress=on_progress,
             )
 

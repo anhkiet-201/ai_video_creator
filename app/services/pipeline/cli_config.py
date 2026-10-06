@@ -26,6 +26,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "source_folder": "assets/samples/company_media",
     "num_videos": 10,
     "api_keys": [],
+    "provider": "gemini",
+    "base_url": None,
     "model": "gemini-3.5-flash-lite",
     "voice": None,  # Mặc định null khi randomize_voice_clone bật
     "output_dir": "storage/outputs",
@@ -55,6 +57,10 @@ CLI_FLAG_MAP: Dict[str, str] = {
     "--source-folder": "source_folder",
     "--num-videos": "num_videos",
     "--api-keys": "api_keys",
+    "--llm-provider": "provider",
+    "--provider": "provider",
+    "--llm-base-url": "base_url",
+    "--base-url": "base_url",
     "--model": "model",
     "--voice": "voice",
     "--output-dir": "output_dir",
@@ -258,6 +264,8 @@ def merge_config_with_cli(
         "source_folder",
         "num_videos",
         "api_keys",
+        "provider",
+        "base_url",
         "model",
         "voice",
         "output_dir",
@@ -279,6 +287,9 @@ def merge_config_with_cli(
 
     for field in direct_fields:
         cli_val = getattr(cli_args, field, None)
+        if cli_val is None and hasattr(cli_args, f"llm_{field}"):
+            cli_val = getattr(cli_args, f"llm_{field}")
+
         has_cli_explicit = field in explicit_keys
         has_json = field in json_config
         json_val = json_config.get(field)

@@ -252,6 +252,33 @@ class TestCLIConfig(unittest.TestCase):
         self.assertEqual(resolved["content_file"], "my_job.txt")
         self.assertIsNone(resolved["content"])
 
+    def test_provider_and_base_url_loading_and_override(self):
+        """Kiểm tra nạp provider & base_url từ config.json và cơ chế ghi đè bằng cờ CLI."""
+        # 1. Nạp từ JSON khi không có cờ CLI
+        json_data = {
+            "provider": "lm_studio",
+            "base_url": "http://127.0.0.1:1234",
+            "model": "google/gemma-4-e2b",
+        }
+        cli_args = argparse.Namespace()
+        resolved, overridden, notices = merge_config_with_cli(json_data, cli_args, explicit_keys=set())
+        self.assertEqual(resolved["provider"], "lm_studio")
+        self.assertEqual(resolved["base_url"], "http://127.0.0.1:1234")
+        self.assertEqual(resolved["model"], "google/gemma-4-e2b")
+        self.assertEqual(len(overridden), 0)
+
+        # 2. Cờ CLI ghi đè --llm-provider / --provider
+        cli_args_override = argparse.Namespace(llm_provider="gemini")
+        explicit = {"provider"}
+        resolved_override, overridden_override, _ = merge_config_with_cli(
+            json_data, cli_args_override, explicit_keys=explicit
+        )
+        self.assertEqual(resolved_override["provider"], "gemini")
+        self.assertEqual(len(overridden_override), 1)
+        self.assertEqual(overridden_override[0][0], "provider")
+        self.assertEqual(overridden_override[0][1], "lm_studio")
+        self.assertEqual(overridden_override[0][2], "gemini")
+
 
 if __name__ == "__main__":
     unittest.main()

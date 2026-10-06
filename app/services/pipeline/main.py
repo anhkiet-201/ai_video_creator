@@ -76,9 +76,24 @@ def main():
         help="Danh sách các Gemini API Keys (hỗ trợ phân tách bằng dấu phẩy, khoảng trắng hoặc truyền nhiều keys)",
     )
     parser.add_argument(
+        "--llm-provider",
+        "--provider",
+        dest="llm_provider",
+        default=None,
+        choices=["gemini", "lm_studio", "lmstudio", "local"],
+        help="Nhà cung cấp LLM: 'gemini' hoặc 'lm_studio' (mặc định: gemini)",
+    )
+    parser.add_argument(
+        "--llm-base-url",
+        "--base-url",
+        dest="llm_base_url",
+        default=None,
+        help="Địa chỉ máy chủ API cho LM Studio (mặc định: http://localhost:1234/v1)",
+    )
+    parser.add_argument(
         "--model",
         default="gemini-3.5-flash-lite",
-        help="Tên mô hình Gemini AI (mặc định: gemini-3.5-flash-lite)",
+        help="Tên mô hình LLM AI (mặc định: gemini-3.5-flash-lite)",
     )
     parser.add_argument(
         "--voice",
@@ -291,6 +306,8 @@ def main():
             video_source_path=source_path,
             num_videos=int(resolved.get("num_videos", 1)),
             api_keys=api_keys,
+            llm_provider=resolved.get("llm_provider") or resolved.get("provider", "gemini"),
+            llm_base_url=resolved.get("llm_base_url") or resolved.get("base_url"),
             model_name=resolved.get("model", "gemini-3.5-flash-lite"),
             voice_id=resolved.get("voice"),
             output_dir=output_dir_path,
@@ -340,7 +357,9 @@ def main():
 
     _print_param("Thư mục tư liệu nguồn:", str(pipeline_input.video_source_path))
     _print_param("Số lượng video yêu cầu:", f"{pipeline_input.num_videos} video thành phẩm")
-    _print_param("Mô hình Gemini AI:", str(pipeline_input.model_name))
+    _print_param("Nhà cung cấp LLM:", f"{str(pipeline_input.llm_provider).upper()} ({pipeline_input.model_name})")
+    if pipeline_input.llm_base_url:
+        _print_param("Địa chỉ LLM Base URL:", str(pipeline_input.llm_base_url))
     _print_param("Tốc độ đọc (TTS Speed):", f"{pipeline_input.tts_speed}x")
     _print_param("Đồng bộ nhịp đọc:", f"{'BẬT (Smart Speaking Rate Sync)' if pipeline_input.sync_voice_speed else 'TẮT'}")
     _print_param("Thư mục xuất video:", str(pipeline_input.output_dir))

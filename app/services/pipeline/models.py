@@ -69,9 +69,17 @@ class PipelineInput(BaseModel):
         default_factory=list,
         description="Danh sách Gemini API keys để xoay vòng (hỗ trợ list hoặc chuỗi phân tách bởi dấu phẩy)"
     )
+    llm_provider: str = Field(
+        default="gemini",
+        description="Nhà cung cấp LLM: 'gemini' hoặc 'lm_studio'"
+    )
+    llm_base_url: Optional[str] = Field(
+        default=None,
+        description="Địa chỉ API cho LM Studio (mặc định: http://localhost:1234/v1)"
+    )
     model_name: str = Field(
         default="gemini-3.5-flash-lite",
-        description="Mô hình Gemini AI sử dụng"
+        description="Mô hình LLM AI sử dụng"
     )
     voice_id: Optional[Union[VieNeuVoice, str]] = Field(
         default=None,
