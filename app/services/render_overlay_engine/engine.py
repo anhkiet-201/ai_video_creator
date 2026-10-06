@@ -236,18 +236,25 @@ class RenderOverlayEngine:
         timeout: float,
         worker_id: Optional[Union[int, str]] = None
     ) -> None:
-        """Thực thi Chrome Headless CLI chụp ảnh PNG trong suốt được tối ưu tốc độ tối đa trên Windows"""
-        profile_dir = self._get_worker_profile_dir(worker_id)
-
+        """Thực thi Chrome Headless CLI chụp ảnh PNG trong suốt được tối ưu tốc độ tối đa"""
+        profile_dir: Optional[Path] = None
         cmd = [
             self.chrome_path,
             *OPTIMIZED_CHROME_FLAGS,
             f"--window-size={width},{height}",
             f"--disk-cache-dir={self.disk_cache_dir.resolve()}",
-            f"--user-data-dir={profile_dir.resolve()}",
+        ]
+
+        # Chỉ áp dụng profile độc lập trên Windows để tránh file lock / singleton collision
+        # Trên macOS / Linux, cờ --user-data-dir sẽ khiến Chrome headless giữ background services và không thoát sau khi chụp ảnh
+        if IS_WINDOWS:
+            profile_dir = self._get_worker_profile_dir(worker_id)
+            cmd.append(f"--user-data-dir={profile_dir.resolve()}")
+
+        cmd.extend([
             f"--screenshot={output_png_path.resolve()}",
             str(html_path.resolve())
-        ]
+        ])
 
         sp_kwargs = self._get_subprocess_kwargs()
 
@@ -264,7 +271,7 @@ class RenderOverlayEngine:
         except Exception as exc:
             raise RuntimeError(f"Lỗi khi thực thi Chrome Headless tại {self.chrome_path}: {exc}") from exc
         finally:
-            if profile_dir.exists():
+            if profile_dir and profile_dir.exists():
                 try:
                     shutil.rmtree(profile_dir, ignore_errors=True)
                 except Exception:

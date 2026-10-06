@@ -86,6 +86,7 @@ class FFmpegBaseRenderer(BaseVideoRenderer):
     def _run_cmd(self, cmd: List[str], **kwargs: Any) -> subprocess.CompletedProcess:
         """Execute subprocess with platform-specific flags (e.g. CREATE_NO_WINDOW on Windows)."""
         merged_kwargs = {**_get_subprocess_extra_kwargs(), **kwargs}
+        merged_kwargs.setdefault("stdin", subprocess.DEVNULL)
         if merged_kwargs.get("text"):
             merged_kwargs.setdefault("encoding", "utf-8")
             merged_kwargs.setdefault("errors", "replace")
@@ -262,7 +263,7 @@ class FFmpegBaseRenderer(BaseVideoRenderer):
             scene_id = scene.metadata.get("scene_id") or f"scene_{scene.scene_index}"
             segment_output = tmp_dir / f"{scene_id}.mp4"
 
-            cmd = [self._ffmpeg_bin, "-y"]
+            cmd = [self._ffmpeg_bin, "-y", "-nostdin"]
             if getattr(self, "hardware_accel", False) and self._encoder == "h264_nvenc":
                 cmd.extend(["-hwaccel", "auto"])
             if cut_plan.loop_needed:
@@ -293,7 +294,7 @@ class FFmpegBaseRenderer(BaseVideoRenderer):
             )
 
             try:
-                self._run_cmd(cmd, capture_output=True, text=True, check=True, timeout=120)
+                self._run_cmd(cmd, capture_output=True, text=True, check=True, timeout=300)
             except subprocess.CalledProcessError as err:
                 task_logger.error(
                     f"Lỗi khi cắt video segment cho scene {scene.scene_index}: {err.stderr}"
@@ -372,7 +373,7 @@ class FFmpegBaseRenderer(BaseVideoRenderer):
             else:
                 silent_wav = tmp_dir / f"silent_{scene_id}.wav"
                 cmd_silent = [
-                    self._ffmpeg_bin, "-y",
+                    self._ffmpeg_bin, "-y", "-nostdin",
                     "-f", "lavfi",
                     "-t", f"{dur:.3f}",
                     "-i", f"anullsrc=channel_layout=stereo:sample_rate={AUDIO_SAMPLE_RATE}",
@@ -383,7 +384,7 @@ class FFmpegBaseRenderer(BaseVideoRenderer):
                 scene_audio_files.append(silent_wav)
 
             # Ghép video segment + overlay image (nếu có).
-            cmd = [self._ffmpeg_bin, "-y", "-i", str(segment_path.resolve())]
+            cmd = [self._ffmpeg_bin, "-y", "-nostdin", "-i", str(segment_path.resolve())]
             if has_overlay:
                 cmd.extend(["-i", str(Path(scene.overlay_image_path).resolve())])
                 if flip_h:
@@ -422,7 +423,7 @@ class FFmpegBaseRenderer(BaseVideoRenderer):
             )
 
             try:
-                self._run_cmd(cmd, capture_output=True, text=True, check=True, timeout=120)
+                self._run_cmd(cmd, capture_output=True, text=True, check=True, timeout=300)
             except subprocess.CalledProcessError as err:
                 task_logger.error(f"Lỗi ghép scene {scene_id}: {err.stderr}")
                 raise RenderExecutionError(f"Ghép scene {scene_id} thất bại: {err.stderr}") from err
@@ -467,7 +468,7 @@ class FFmpegBaseRenderer(BaseVideoRenderer):
                 prev_v = out_v
 
             cmd_xfade = (
-                [self._ffmpeg_bin, "-y"]
+                [self._ffmpeg_bin, "-y", "-nostdin"]
                 + inputs
                 + [
                     "-filter_complex", ";".join(filter_parts),
@@ -480,7 +481,7 @@ class FFmpegBaseRenderer(BaseVideoRenderer):
                 ]
             )
             try:
-                self._run_cmd(cmd_xfade, capture_output=True, text=True, check=True, timeout=180)
+                self._run_cmd(cmd_xfade, capture_output=True, text=True, check=True, timeout=600)
             except subprocess.CalledProcessError as err:
                 task_logger.error(f"Lỗi khi nối video bằng xfade: {err.stderr}")
                 raise RenderExecutionError(f"Concat video xfade thất bại: {err.stderr}") from err
@@ -492,7 +493,7 @@ class FFmpegBaseRenderer(BaseVideoRenderer):
                     f.write(f"file '{sc.resolve().as_posix()}'\n")
 
             concat_cmd = [
-                self._ffmpeg_bin, "-y",
+                self._ffmpeg_bin, "-y", "-nostdin",
                 "-f", "concat",
                 "-safe", "0",
                 "-i", str(concat_list_file.resolve()),
@@ -501,7 +502,7 @@ class FFmpegBaseRenderer(BaseVideoRenderer):
             ]
             task_logger.info("Nối các phân cảnh video bằng Concat Demuxer...")
             try:
-                self._run_cmd(concat_cmd, capture_output=True, text=True, check=True, timeout=120)
+                self._run_cmd(concat_cmd, capture_output=True, text=True, check=True, timeout=300)
             except subprocess.CalledProcessError as err:
                 task_logger.error(f"Lỗi khi nối các scene video: {err.stderr}")
                 raise RenderExecutionError(f"Concat video thất bại: {err.stderr}") from err
@@ -510,7 +511,7 @@ class FFmpegBaseRenderer(BaseVideoRenderer):
         voice_master_wav = tmp_dir / "voice_master.wav"
         if len(scene_audio_files) == 1:
             cmd_audio_single = [
-                self._ffmpeg_bin, "-y",
+                self._ffmpeg_bin, "-y", "-nostdin",
                 "-i", str(scene_audio_files[0].resolve()),
                 "-c:a", "pcm_s16le",
                 "-ar", str(AUDIO_SAMPLE_RATE),
@@ -532,7 +533,7 @@ class FFmpegBaseRenderer(BaseVideoRenderer):
             )
             audio_filter_parts.append(concat_expr)
             cmd_audio_concat = (
-                [self._ffmpeg_bin, "-y"]
+                [self._ffmpeg_bin, "-y", "-nostdin"]
                 + audio_concat_inputs
                 + [
                     "-filter_complex", ";".join(audio_filter_parts),
@@ -542,7 +543,7 @@ class FFmpegBaseRenderer(BaseVideoRenderer):
                 ]
             )
             try:
-                self._run_cmd(cmd_audio_concat, capture_output=True, text=True, check=True, timeout=120)
+                self._run_cmd(cmd_audio_concat, capture_output=True, text=True, check=True, timeout=300)
             except subprocess.CalledProcessError as err:
                 task_logger.error(f"Lỗi ghép nối Master Audio: {err.stderr}")
                 raise RenderExecutionError(f"Ghép Master Audio thất bại: {err.stderr}") from err
@@ -624,7 +625,7 @@ class FFmpegBaseRenderer(BaseVideoRenderer):
                     )
 
         final_cmd = [
-            self._ffmpeg_bin, "-y",
+            self._ffmpeg_bin, "-y", "-nostdin",
             "-i", str(concatenated_video.resolve()),
             "-i", str(voice_master_wav.resolve()),
         ]
@@ -729,7 +730,7 @@ class FFmpegBaseRenderer(BaseVideoRenderer):
         )
 
         try:
-            self._run_cmd(final_cmd, capture_output=True, text=True, check=True, timeout=300)
+            self._run_cmd(final_cmd, capture_output=True, text=True, check=True, timeout=600)
         except subprocess.CalledProcessError as err:
             task_logger.error(f"Lỗi khi hoàn tất encode video: {err.stderr}")
             raise RenderExecutionError(f"Render video thành phẩm thất bại: {err.stderr}") from err

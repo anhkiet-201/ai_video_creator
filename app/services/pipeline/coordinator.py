@@ -234,6 +234,18 @@ class VideoCreationPipeline:
                 f"Lỗi Bước 1: Thư mục tư liệu '{source_dir}' không chứa file video hoặc ảnh hợp lệ nào!"
             )
 
+        # 1.2b Pre-warm kiểm tra file media (kích hoạt macOS CloudStorage/FileProvider tải dữ liệu về máy)
+        for mf in media_files:
+            try:
+                with open(mf, "rb") as f:
+                    _ = f.read(4096)
+                    file_size = mf.stat().st_size
+                    if file_size > 4096:
+                        f.seek(max(0, file_size - 4096))
+                        _ = f.read(4096)
+            except Exception as e:
+                logger.warning(f"[Bước 1] Không thể đọc kiểm tra file {mf.name}: {e}")
+
         # 1.3 Kiểm tra API Keys (chỉ bắt buộc với Gemini)
         provider_name = getattr(input_data, "llm_provider", "gemini")
         valid_keys = self._resolve_api_keys(input_data.api_keys)

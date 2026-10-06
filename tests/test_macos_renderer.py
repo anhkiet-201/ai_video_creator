@@ -303,10 +303,15 @@ class TestMacOSVideoRenderer(unittest.TestCase):
             temp_dir=TEST_TMP_DIR,
         )
 
+        multi_broll_dir = TEST_TMP_DIR / "multi_brolls"
+        multi_broll_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy(SAMPLES_DIR / "sample_broll.mp4", multi_broll_dir / "broll_01.mp4")
+        shutil.copy(SAMPLES_DIR / "sample_broll.mp4", multi_broll_dir / "broll_02.mp4")
+
         self.renderer.on_render_start(
             plan=plan,
             task_logger=self.task_logger,
-            source_folder=SAMPLES_DIR,
+            source_folder=multi_broll_dir,
             config=config,
         )
 
