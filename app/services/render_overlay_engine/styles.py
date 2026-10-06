@@ -9,7 +9,6 @@ from app.services.render_overlay_engine.fonts import (
 )
 from app.services.render_overlay_engine.palettes import (
     ColorPalette,
-    ensure_pastel,
     generate_pastel_rainbow,
     get_contrast_text_color,
     get_luminance,
@@ -18,7 +17,6 @@ from app.services.render_overlay_engine.palettes import (
     resolve_palette,
     to_candy_color,
     to_pastel_cloud,
-    to_pastel_tint,
 )
 
 
@@ -1365,9 +1363,17 @@ class RetroGroovyOrangeStyle(BaseOverlayStyle):
     def apply_palette(self, palette: Union[str, ColorPalette, List[str], Tuple[str, ...]]) -> None:
         p = resolve_palette(palette)
         self.palette = p
-        self.orange_fill = p.c1
-        self.orange_highlight = p.c2
-        self.teal_extrusion = p.c3
+        # Chọn màu sáng và rực rỡ nhất cho mặt chữ để đảm bảo luôn tương phản mạnh với dark_outline
+        bright_candidates = [c for c in p.colors if not is_dark(c, threshold=0.35)]
+        if bright_candidates:
+            self.orange_fill = max(bright_candidates, key=get_vibrancy)
+            remaining = [c for c in p.colors if c != self.orange_fill]
+            self.orange_highlight = remaining[0] if remaining else p.c2
+            self.teal_extrusion = remaining[1] if len(remaining) > 1 else p.c3
+        else:
+            self.orange_fill = to_candy_color(p.c1, target_l=0.72)
+            self.orange_highlight = to_candy_color(p.c2, target_l=0.75)
+            self.teal_extrusion = p.c3
 
     def render_html(
         self,
@@ -1536,7 +1542,7 @@ class TropicalContourStyle(BaseOverlayStyle):
     def apply_palette(self, palette: Union[str, ColorPalette, List[str], Tuple[str, ...]]) -> None:
         p = resolve_palette(palette)
         self.palette = p
-        self.green_color = p.c1
+        self.green_color = to_candy_color(p.c1, target_l=0.55) if is_dark(p.c1, threshold=0.18) else p.c1
         self.yellow_contour = p.c2
         self.orange_contour = p.c3
         self.pink_contour = p.c4
@@ -1698,8 +1704,9 @@ class GridNotebookDiaryStyle(BaseOverlayStyle):
         self.palette = p
         pairs: List[Tuple[str, str]] = []
         for c in p.colors:
-            shadow = "#18181b" if not is_dark(c) else "#000000"
-            pairs.append((c, shadow))
+            actual_c = to_candy_color(c, target_l=0.60) if is_dark(c, threshold=0.35) else c
+            shadow = "#18181b"
+            pairs.append((actual_c, shadow))
         self.word_palette = pairs
 
     def render_html(

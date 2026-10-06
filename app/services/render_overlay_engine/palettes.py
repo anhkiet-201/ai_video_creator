@@ -268,55 +268,19 @@ COLOR_PALETTES: List[ColorPalette] = [
         tags=("retro", "groovy", "warm")
     ),
     ColorPalette(
-        id="nostalgic_diner",
-        name="Nostalgic Diner",
-        colors=("#e75a7c", "#2c363f", "#bbc7a4", "#f2f5ea"),
-        tags=("retro", "vintage", "contrast")
-    ),
-    ColorPalette(
-        id="vintage_mustard_teal",
-        name="Vintage Mustard Teal",
-        colors=("#2b4141", "#0eb1d2", "#e2c044", "#f4f1de"),
-        tags=("retro", "vintage", "bold")
-    ),
-    ColorPalette(
-        id="terracotta_olive",
-        name="Terracotta Olive",
-        colors=("#3d5656", "#688b58", "#e8deaa", "#f4f1de"),
-        tags=("retro", "earth", "vintage")
-    ),
-    ColorPalette(
-        id="dusty_rose_navy",
-        name="Dusty Rose Navy",
-        colors=("#424874", "#a6b1e1", "#dcd6f7", "#f4eeff"),
-        tags=("retro", "cool", "vintage")
-    ),
-    ColorPalette(
-        id="warm_autumn_wood",
-        name="Warm Autumn Wood",
-        colors=("#6a2c70", "#b83b5e", "#f08a5d", "#f9ed69"),
-        tags=("retro", "warm", "autumn")
-    ),
-    ColorPalette(
-        id="rustic_brick_clay",
-        name="Rustic Brick Clay",
-        colors=("#c84b31", "#2d4263", "#ecdbba", "#191919"),
-        tags=("retro", "bold", "vintage")
+        id="sunflower_honey",
+        name="Sunflower Honey",
+        colors=("#ffb703", "#fb8500", "#ffbe0b", "#fff3b0"),
+        tags=("retro", "warm", "groovy")
     ),
     ColorPalette(
         id="70s_boho_orange",
         name="70s Boho Orange",
-        colors=("#d97706", "#f59e0b", "#475569", "#fef3c7"),
+        colors=("#d97706", "#f59e0b", "#fbbf24", "#fef3c7"),
         tags=("retro", "warm", "boho")
     ),
 
     # --- NHÓM 3: NEON, CYBER & POP ART (Tương phản cực cao, hiện đại, kích thích thị giác) ---
-    ColorPalette(
-        id="cyber_neon_glow",
-        name="Cyber Neon Glow",
-        colors=("#00adb5", "#393e46", "#ff2e63", "#eeeeee"),
-        tags=("neon", "cyber", "bold")
-    ),
     ColorPalette(
         id="electric_purple_orange",
         name="Electric Purple Orange",
@@ -324,40 +288,16 @@ COLOR_PALETTES: List[ColorPalette] = [
         tags=("neon", "pop", "bold")
     ),
     ColorPalette(
-        id="arcade_night",
-        name="Arcade Night",
-        colors=("#610094", "#3f0071", "#150050", "#00fff5"),
-        tags=("neon", "cyber", "dark")
-    ),
-    ColorPalette(
         id="hyper_pop",
         name="Hyper Pop Splash",
-        colors=("#ff005c", "#ff7a00", "#7600ec", "#00e0ff"),
+        colors=("#ff005c", "#ff7a00", "#ff00a0", "#00e0ff"),
         tags=("neon", "pop", "vibrant")
     ),
     ColorPalette(
-        id="bold_cobalt_flame",
-        name="Bold Cobalt Flame",
-        colors=("#082032", "#2c394b", "#334756", "#ff4c29"),
-        tags=("neon", "dark", "contrast")
-    ),
-    ColorPalette(
-        id="acid_lime_violet",
-        name="Acid Lime Violet",
-        colors=("#7209b7", "#3a0ca3", "#4cc9f0", "#f72585"),
-        tags=("neon", "cyber", "pop")
-    ),
-    ColorPalette(
-        id="tokyo_neon_drizzle",
-        name="Tokyo Neon Drizzle",
-        colors=("#2d31fa", "#051367", "#5d8bf4", "#dff6ff"),
-        tags=("neon", "blue", "cyber")
-    ),
-    ColorPalette(
-        id="ultra_vivid_gold",
-        name="Ultra Vivid Gold",
-        colors=("#1b1a17", "#f0a500", "#e45826", "#e6d5ac"),
-        tags=("neon", "warm", "bold")
+        id="bubblegum_pop",
+        name="Bubblegum Pop",
+        colors=("#f72585", "#ff007f", "#4cc9f0", "#4895ef"),
+        tags=("neon", "pop", "candy")
     ),
 
     # --- NHÓM 4: WARM, SUNSET & TROPICAL (Ấm áp, rực rỡ, năng động) ---
@@ -386,12 +326,6 @@ COLOR_PALETTES: List[ColorPalette] = [
         tags=("warm", "tropical", "vibrant")
     ),
     ColorPalette(
-        id="peach_bellini",
-        name="Peach Bellini",
-        colors=("#ee4e34", "#fcedda", "#feeaa1", "#2e4057"),
-        tags=("warm", "soft", "sweet")
-    ),
-    ColorPalette(
         id="sunny_citrus",
         name="Sunny Citrus Punch",
         colors=("#f59e0b", "#fbbf24", "#f43f5e", "#fffbeb"),
@@ -402,6 +336,18 @@ COLOR_PALETTES: List[ColorPalette] = [
         name="Desert Dune Blush",
         colors=("#b45309", "#d97706", "#fcd34d", "#fef3c7"),
         tags=("warm", "earth", "gold")
+    ),
+    ColorPalette(
+        id="mango_passion_punch",
+        name="Mango Passion Punch",
+        colors=("#ff9f1c", "#ffbf69", "#ffd166", "#ffffff"),
+        tags=("warm", "tropical", "candy")
+    ),
+    ColorPalette(
+        id="coral_sunset_glow",
+        name="Coral Sunset Glow",
+        colors=("#ff6b6b", "#feca57", "#ff9ff3", "#fefae0"),
+        tags=("warm", "sunset", "coral")
     ),
 
     # --- NHÓM 5: COLD, OCEAN & GLACIER (Thanh mát, sâu thẳm, dịu mắt) ---
@@ -418,34 +364,16 @@ COLOR_PALETTES: List[ColorPalette] = [
         tags=("cold", "clean", "minimal")
     ),
     ColorPalette(
-        id="emerald_teal_night",
-        name="Emerald Teal Night",
-        colors=("#0e8388", "#2e4f4f", "#2c3333", "#cbe4de"),
-        tags=("cold", "forest", "teal")
-    ),
-    ColorPalette(
-        id="sapphire_amber",
-        name="Sapphire Amber",
-        colors=("#001e6c", "#035397", "#5089c6", "#ffaa4c"),
-        tags=("cold", "contrast", "blue")
-    ),
-    ColorPalette(
-        id="mint_aquamarine",
-        name="Mint Aquamarine",
-        colors=("#069a8e", "#005555", "#a1e3d8", "#f7ff93"),
-        tags=("cold", "fresh", "mint")
-    ),
-    ColorPalette(
         id="frosty_blue_puffy",
         name="Frosty Blue Puffy",
         colors=("#2563eb", "#5ea5ec", "#a9d6ff", "#f0f7ff"),
         tags=("cold", "blue", "soft")
     ),
     ColorPalette(
-        id="cyan_midnight",
-        name="Cyan Midnight",
-        colors=("#00b4d8", "#0077b6", "#03045e", "#caf0f8"),
-        tags=("cold", "ocean", "dark")
+        id="mint_lemon_sorbet",
+        name="Mint Lemon Sorbet",
+        colors=("#06d6a0", "#ffd166", "#ef476f", "#f4f1de"),
+        tags=("fresh", "mint", "citrus")
     ),
 
     # --- NHÓM 6: CUTE, VLOG & DIARY (Phong cách sticker hoạt hình, TikTok viral) ---
@@ -476,7 +404,7 @@ COLOR_PALETTES: List[ColorPalette] = [
     ColorPalette(
         id="notebook_y2k_vibes",
         name="Notebook Y2K Vibes",
-        colors=("#ff4d6d", "#0096c7", "#7209b7", "#f77f00"),
+        colors=("#ff4d6d", "#0096c7", "#ff007f", "#f77f00"),
         tags=("cute", "y2k", "multicolor")
     ),
     ColorPalette(
@@ -486,16 +414,16 @@ COLOR_PALETTES: List[ColorPalette] = [
         tags=("cute", "pastel", "soft")
     ),
     ColorPalette(
+        id="peach_berry_smoothie",
+        name="Peach Berry Smoothie",
+        colors=("#ff8fab", "#fb6f92", "#ffe5ec", "#ffc2d1"),
+        tags=("cute", "pastel", "sweet")
+    ),
+    ColorPalette(
         id="butter_toast",
         name="Butter Honey Toast",
         colors=("#d4a373", "#faedcd", "#fefae0", "#ccd5ae"),
         tags=("cute", "warm", "vintage")
-    ),
-    ColorPalette(
-        id="torn_vintage_news",
-        name="Torn Vintage News",
-        colors=("#42211d", "#801d1d", "#fde8d0", "#f7f1e5"),
-        tags=("vintage", "paper", "classic")
     ),
     ColorPalette(
         id="sakura_spring",
@@ -508,6 +436,90 @@ COLOR_PALETTES: List[ColorPalette] = [
         name="Galaxy Cotton Candy",
         colors=("#a55eea", "#45aaf2", "#2bcbba", "#fed330"),
         tags=("candy", "pop", "bright")
+    ),
+    ColorPalette(
+        id="strawberry_milk",
+        name="Strawberry Milk Shake",
+        colors=("#ff4d6d", "#ff758f", "#ffb3c1", "#fff0f3"),
+        tags=("cute", "pink", "sweet")
+    ),
+    ColorPalette(
+        id="lemonade_stand",
+        name="Sunny Lemonade Stand",
+        colors=("#ffe600", "#ffd000", "#ffaa00", "#ffffff"),
+        tags=("yellow", "bright", "sunny")
+    ),
+    ColorPalette(
+        id="tropical_island",
+        name="Tropical Blue Island",
+        colors=("#00b4d8", "#90e0ef", "#ffb703", "#fb8500"),
+        tags=("summer", "vibrant", "blue")
+    ),
+    ColorPalette(
+        id="lavender_dream",
+        name="Lavender Dream Whisper",
+        colors=("#b5838d", "#e5989b", "#ffb4a2", "#ffcdb2"),
+        tags=("pastel", "soft", "aesthetic")
+    ),
+    ColorPalette(
+        id="kiwi_lime_splash",
+        name="Kiwi Lime Splash",
+        colors=("#52b788", "#74c69d", "#95d5b2", "#d8f3dc"),
+        tags=("fresh", "green", "nature")
+    ),
+    ColorPalette(
+        id="matcha_cream",
+        name="Bright Matcha Cream",
+        colors=("#80b918", "#aacc00", "#d4d700", "#ffff3f"),
+        tags=("green", "fresh", "bright")
+    ),
+    ColorPalette(
+        id="watermelon_breeze",
+        name="Watermelon Breeze",
+        colors=("#ff5964", "#f7b2b7", "#35a7ff", "#fffbfe"),
+        tags=("summer", "fresh", "candy")
+    ),
+    ColorPalette(
+        id="sunlit_terrace",
+        name="Sunlit Golden Terrace",
+        colors=("#f39c12", "#f1c40f", "#e67e22", "#fdfefe"),
+        tags=("warm", "orange", "sunny")
+    ),
+    ColorPalette(
+        id="aquamarine_gem",
+        name="Aquamarine Fresh Gem",
+        colors=("#06d6a0", "#118ab2", "#48cae4", "#caf0f8"),
+        tags=("teal", "cyan", "cold")
+    ),
+    ColorPalette(
+        id="apricot_sherbet",
+        name="Apricot Fruit Sherbet",
+        colors=("#f9844a", "#f9c74f", "#90be6d", "#43aa8b"),
+        tags=("spring", "fruit", "warm")
+    ),
+    ColorPalette(
+        id="neon_sunset",
+        name="Neon Sunset Glow",
+        colors=("#ff0054", "#ff5400", "#ffbd00", "#ff70a6"),
+        tags=("vibrant", "sunset", "pop")
+    ),
+    ColorPalette(
+        id="sweet_violet",
+        name="Sweet Violet Popsicle",
+        colors=("#9b5de5", "#f15bb5", "#fee440", "#00f5d4"),
+        tags=("pop", "fun", "rainbow")
+    ),
+    ColorPalette(
+        id="cherry_blossom",
+        name="Cherry Blossom Petals",
+        colors=("#ff758f", "#ff8fa3", "#ffb3c6", "#ffffff"),
+        tags=("pink", "flower", "pastel")
+    ),
+    ColorPalette(
+        id="honey_mustard_pop",
+        name="Honey Mustard Pop",
+        colors=("#ffb703", "#fb8500", "#02c39a", "#f0f3f4"),
+        tags=("pop", "bright", "retro")
     ),
 ]
 
