@@ -16,6 +16,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
 from app.services.key_rotator import KeyRotator
 from app.services.plan_creator import (
     DEFAULT_JSON_STRUCTURE,
@@ -1066,19 +1069,21 @@ def test_dynamic_zero_finance_and_payout_frequency_firewall():
     assert "dòng tiền" in DEFAULT_SYSTEM_PROMPT
     assert "xoay xở" in DEFAULT_SYSTEM_PROMPT
     assert "bạc" in DEFAULT_SYSTEM_PROMPT.lower()
-    assert "DROP 100% of financial, compensation, and payment schedule sections" in DEFAULT_SYSTEM_PROMPT
+    assert "creatively and safely transform these details into relatable, entertaining workplace experiences" in DEFAULT_SYSTEM_PROMPT
+    assert "DYNAMIC USER DIRECTIVE PRIMACY (ZERO HARDCODING)" in DEFAULT_SYSTEM_PROMPT
 
     # 2. Không được hardcode tên cụ thể ngành nghề hay thiết bị trong prompt (đảm bảo tính tổng quát)
     assert "máy hút bụi" not in DEFAULT_SYSTEM_PROMPT.lower()
     assert "bắn súng vít" not in DEFAULT_SYSTEM_PROMPT.lower()
     assert "đan lát" not in DEFAULT_SYSTEM_PROMPT.lower()
 
-    # 3. User Prompt Template: Chứa chỉ thị tường lửa Zero Finance
+    # 3. User Prompt Template: Chứa chỉ thị tường lửa Zero Finance & Directive Primacy
     assert "ABSOLUTE ZERO FINANCE" in DEFAULT_USER_PROMPT_TEMPLATE
     assert "3 ngày/lần" in DEFAULT_USER_PROMPT_TEMPLATE
     assert "chi trả công" in DEFAULT_USER_PROMPT_TEMPLATE
     assert "bạc" in DEFAULT_USER_PROMPT_TEMPLATE
     assert "xoay xở" in DEFAULT_USER_PROMPT_TEMPLATE
+    assert "Directive Primacy" in DEFAULT_USER_PROMPT_TEMPLATE
 
     print("-> PASS: test_dynamic_zero_finance_and_payout_frequency_firewall")
 

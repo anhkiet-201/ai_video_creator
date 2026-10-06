@@ -66,17 +66,23 @@ This living document serves as the **Single Source of Truth** for narrative tone
 
 ---
 
-## 3. Relatable Casual Slang & Comedic Expletives (Venting & Shock, ZERO Gangster Tone)
+## 3. Relatable Casual Slang & Gritty Working-Class Expletives (Strong Emotional Expression & Positive Hype)
 
-Used to convey authentic workplace exhaustion, comedic shock, and relatable peer venting (strictly non-violent, zero street thuggery):
+Used to convey authentic working-class energy, raw comedic shock, intense retention hooks, and relatable peer venting (strictly non-violent, zero street thuggery):
 
-- `vãi`, `vãi chưởng`, `vãi nồi`, `vãi chấy`, `vãi linh hồn`
+### Thán từ mở đầu bỗ bã & Giật retention cực mạnh (Hook Openers):
+- `Ụ má tụi bây ơi...` / `Ụ má tin nổi hông tụi bây...`
+- `Chời mẹ ơi tụi bây kéo vô đây coi lẹ nè...` / `Má nó chứ tụi bây coi cái này nè...`
+- `Ủa alo mẹ ơi tụi bây ơi...` / `Dô đây coi lẹ tụi bây ơiii...`
+- `Trời thần mẹ ơi tụi bây ơi...` / `Trời đất mẹ ơi tụi bây...`
+
+### Khẩu ngữ thô tục cảm thán khen ngợi phấn khích & Biểu cảm cực đã (Positive Hype & Awe):
+- `vãi`, `vãi chưởng`, `vãi nồi`, `vãi chấy`, `vãi linh hồn`, `vãi đạn`
+- `cuốn vãi chưởng`, `cuốn vãi nồi`, `cuốn đét đèn đẹt`, `làm cuốn vãi`
+- `sướnggg vãi nồi`, `phê lòi mắt`, `đã cái nư vãi chấy`
+- `chạy mượt đét`, `làm vèo vèo`, `chiến tới bến`, `đỉnh chóp vãi`
+- `ấm cái bụng vãi linh hồn`, `mát rười rượi sướng mê ly`
 - `má nó chứ`, `mụ nội nó chứ`, `chết tiệt thiệt chớ`
-- `cay cú`, `cay xé lòng`, `tức cái lồng ngực`
-- `lú luôn`, `lú cả đầu`, `chóng cả mặt`
-- `toang rồi`, `toang cả lò`, `xong phim rồiii`
-- `muốn rụng cái giò`, `đứng muốn gãy cái lưng`, `mệt muốn đứt hơi`
-- `chạy mất dép`, `hãi hùng muốn khóc`, `bất lực toàn tập`
 - `cháy máy`, `chạy rớt cái nết`, `cuống cuồng cuồng lên`
 
 ---
