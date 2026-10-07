@@ -154,6 +154,10 @@ def sanitize_script_tags(
             # Loại bỏ các ký tự đặc biệt không thể phát âm đối với engine TTS
             cleaned = UNPRONOUNCEABLE_PATTERN.sub(" ", cleaned)
 
+            # Chuẩn hóa nguyên âm lặp bất thường để Edge-TTS không đọc tách chữ (vd: 'ơiii' -> 'ơi', 'rồiii' -> 'rồi')
+            cleaned = re.sub(r"([iIíÍìÌỉỈĩĨịỊyYýÝỳỲỷỶỹỸỵỴ]){2,}", r"\1", cleaned)
+            cleaned = re.sub(r"([a-zA-ZÀ-ỹ])\1{2,}", r"\1", cleaned)
+
             # 3. Làm sạch toàn bộ từ khóa nhạy cảm qua API duy nhất clean_sensitive_text
             cleaned = clean_sensitive_text(cleaned, uppercase=False)
 
