@@ -21,21 +21,21 @@ SENSITIVE_REPLACEMENTS: Dict[Tuple[str, ...], List[str]] = {
     (r"(?i)\b(?:nhận\s+)?thiếu\s*tháng(?:\s+từ\s+200\d)?\b",): ["mọi người"],
     (r"(?i)\b(?:sinh\s+năm|năm\s+sinh|(?:sinh\s+)?(?:năm\s+)?(?:từ\s+)?200\d|2k\d)\b",): [""],
 
-    # 3. Loại bỏ lôi kéo người & điều hướng ứng tuyển
+    # 3. Loại bỏ lôi kéo người & điều hướng ứng tuyển thô thiển
     (r"(?i)\b(?:rủ\s*bạn(?:\s*bè)?(?:\s*cùng)?\s*(?:làm|đi\s*làm)|về\s*chung\s*đội|inbox\s*(?:để\s*)?nhận\s*việc|bình\s*luận\s*(?:để\s*)?nhận\s*việc|vào\s*việc\s*cùng\s*tụi\s*mình)\b",): ["cùng theo dõi"],
     (r"(?i)\b(?:nộp\s*hồ\s*sơ|hồ\s*sơ\s*xin\s*việc|xin\s*việc|phỏng\s*vấn)\b",): ["tìm hiểu"],
     (r"(?i)\b(?:ứng\s*tuyển|nhận\s*việc)\b",): ["trải nghiệm"],
     (r"(?i)\btuyển(?:\s*(?:dụng|gấp|thêm|người))?\b",): ["khám phá"],
     (r"(?i)\bviệc\s*làm\b",): ["môi trường làm việc"],
-    (r"(?i)\bcông\s*việc\b",): ["môi trường"],
     (r"(?i)\bnam\s*/?\s*nữ\b",): ["mọi người"],
 
     # 4. Giấy tờ cá nhân & PII (Bảo vệ thông tin cá nhân và chống cờ scam/fraud)
     (r"(?i)\b(?:căn\s*cước\s*công\s*dân|căn\s*cước|cccd|cmnd|giấy\s*tờ\s*tùy\s*thân)\b",): [""],
 
-    # 5. Tiền bạc & Tài chính (Cấm triệt để 100%, không lách bằng tiếng lóng lúa/cành/củ/xị/thóc)
+    # 5. Tiền bạc & Tài chính (An toàn thuật toán OCR & Audio)
     (r"(?i)\bxoay\s*vòng\s*vốn\b",): ["hoạt động"],
-    (r"(?i)\b(?:ứng\s*lương|tiền\s*lương|mức\s*lương|thu\s*nhập|lương(?!\s*(?:tâm|thực|tháng))|tiền|thóc\s*thật|thóc|lúa|cành|củ|xị(?:\s*rưỡi)?)\b",): [""],
+    (r"(?i)\bứng\s*lương\b",): ["ứng trước"],
+    (r"(?i)\b(?:tiền\s*lương|mức\s*lương|thu\s*nhập|lương(?!\s*(?:tâm|thực|tháng))|tiền|thóc\s*thật|thóc|lúa|cành|củ|xị(?:\s*rưỡi)?)\b",): [""],
     (r"(?i)(?<=\d)\s*k\b", r"(?i)\b(?:ngàn|nghìn|ngìn|triệu)\b",): [""],
 
     # 6. Lao động & áp lực

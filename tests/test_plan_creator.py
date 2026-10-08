@@ -540,11 +540,10 @@ def test_platform_policy_compliance_and_slang_rules():
 
     # 2. Đầy đủ các rào chắn nền tảng và chuẩn mực review
     safety_concepts = [
-        "zero recruitment",
-        "zero solicitation",
+        "anti-solicitation",
         "zero finance",
         "zero gender",
-        "zero age",
+        "zero underage labour",
         "omit all pii",
         "personal paperwork",
         "scam",
@@ -554,16 +553,16 @@ def test_platform_policy_compliance_and_slang_rules():
         "anti-hyperbole",
         "anti-verbatim",
         "administrative",
-        "corporate bulletin",
+        "ban on enticement",
         "company review",
-        "workplace review",
+        "zero information dumping",
         "zero hallucination",
     ]
     for concept in safety_concepts:
         assert concept in prompt_lower, f"Thiếu concept '{concept}' trong DEFAULT_SYSTEM_PROMPT"
 
-    assert "sharing real job opportunities" not in prompt_lower
-    assert "compensation mention" not in prompt_lower
+    assert "staffing scout" in prompt_lower
+    assert "recruitment-leaning" in prompt_lower
 
     # 3. User Prompt tham chiếu System Prompt
     assert "system prompt" in DEFAULT_USER_PROMPT_TEMPLATE.lower()
@@ -586,9 +585,8 @@ def test_valid_emotion_tags_and_strict_whitelist():
     # 2. Kiểm tra các cảnh báo cấm tự bịa thẻ trong System Prompt (Source of Truth)
     anti_hallucination_kw = [
         "ZERO TAG HALLUCINATION",
-        "[ngạc nhiên]",
-        "[khóc]",
-        "[vỗ tay]",
+        "only allowed emotion tags",
+        "Never invent other tags",
         "AVAILABLE SOUND EFFECTS",
     ]
     for kw in anti_hallucination_kw:
@@ -968,9 +966,9 @@ def test_jolt_opener_and_high_energy_cadence():
     for marker in energy_markers:
         assert marker in DEFAULT_SYSTEM_PROMPT, f"Thiếu '{marker}' trong DEFAULT_SYSTEM_PROMPT"
 
-    # Có ví dụ tiêu biểu cho từ ngữ uể oải / hạ nhiệt cần tránh
-    assert "gãy cái lưng" in DEFAULT_SYSTEM_PROMPT.lower()
-    assert "phòng trà" in DEFAULT_SYSTEM_PROMPT.lower()
+    # Có quy chuẩn cấm từ ngữ uể oải, than vãn hoặc tản văn
+    assert "depressive" in DEFAULT_SYSTEM_PROMPT.lower()
+    assert "low-energy" in DEFAULT_SYSTEM_PROMPT.lower()
 
     # User Prompt nhắc mở đầu bằng sự thật cụ thể từ nguồn
     assert "concrete fact from the input" in DEFAULT_USER_PROMPT_TEMPLATE
@@ -987,7 +985,7 @@ def test_dynamic_zero_finance_and_payout_frequency_firewall():
 
     # 1. Tường lửa tài chính & chu kỳ thanh toán
     assert "ZERO FINANCE & PAYOUT FREQUENCY" in DEFAULT_SYSTEM_PROMPT
-    assert "3 ngày/lần" in DEFAULT_SYSTEM_PROMPT
+    assert "payout schedules" in DEFAULT_SYSTEM_PROMPT.lower()
     assert "creatively and safely transform these details into relatable, entertaining workplace experiences" in DEFAULT_SYSTEM_PROMPT
 
     # 2. Không gán cứng ví dụ ngành nghề, thiết bị hoặc tiện ích của công ty cũ
@@ -1010,12 +1008,12 @@ def test_dynamic_zero_finance_and_payout_frequency_firewall():
 
 
 def test_interjection_diversity_and_anti_fixation_rules():
-    """Kiểm tra quy tắc chống độc tôn 'Trời đất quỷ thần ơi' và lexicon có đủ 5 nhóm thán từ."""
+    """Kiểm tra quy tắc xoay vòng thán từ và lexicon có đủ 5 nhóm thán từ."""
     from app.services.plan_creator.prompts import DEFAULT_SYSTEM_PROMPT, LEXICON_CONTENT
 
     # 1. System Prompt chứa nguyên tắc Anti-Fixation
     assert "ANTI-FIXATION & THEATRICAL INTERJECTION DIVERSITY" in DEFAULT_SYSTEM_PROMPT
-    assert "Strictly FORBIDDEN to repeatedly default to 'Trời đất quỷ thần ơi'" in DEFAULT_SYSTEM_PROMPT
+    assert "Never fixate on or repeatedly default to the same single interjection" in DEFAULT_SYSTEM_PROMPT
     assert "5 rich emotional categories" in DEFAULT_SYSTEM_PROMPT
 
     # 2. Lexicon có đủ 5 nhóm cảm xúc được prompt tham chiếu
