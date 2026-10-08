@@ -520,63 +520,52 @@ def test_ffmpeg_transitions_completeness():
 
 
 def test_platform_policy_compliance_and_slang_rules():
-    """Kiểm tra sự hiện diện đầy đủ của các rào chắn kiểm duyệt nền tảng (Policy Firewalls) theo 5 trụ cột."""
+    """Kiểm tra System Prompt có khối Platform Safety Firewall đầy đủ và thứ tự ưu tiên tường minh."""
     from app.services.plan_creator.constants import (
         DEFAULT_SYSTEM_PROMPT,
         DEFAULT_USER_PROMPT_TEMPLATE,
     )
 
-    # 1. Kiểm tra Policy 1: Banned concepts (Không phân biệt giới tính, độ tuổi, không PII/thủ tục)
-    policy_1_concepts = [
+    prompt_lower = DEFAULT_SYSTEM_PROMPT.lower()
+
+    # 1. Thứ tự ưu tiên: safety > source fidelity > user directives > style defaults
+    assert "priority order" in prompt_lower
+    priority_positions = [
+        prompt_lower.index("1) platform safety"),
+        prompt_lower.index("2) source fidelity"),
+        prompt_lower.index("3) user directives"),
+        prompt_lower.index("4) style defaults"),
+    ]
+    assert priority_positions == sorted(priority_positions), "Thứ tự ưu tiên trong PILLAR 4.0 bị sai"
+
+    # 2. Đầy đủ các rào chắn nền tảng và chuẩn mực review
+    safety_concepts = [
+        "zero recruitment",
+        "zero solicitation",
+        "zero finance",
         "zero gender",
         "zero age",
         "omit all pii",
         "personal paperwork",
-        "instant money",
         "scam",
-    ]
-    for concept in policy_1_concepts:
-        assert concept.lower() in DEFAULT_SYSTEM_PROMPT.lower(), f"Thiếu concept cấm '{concept}' trong DEFAULT_SYSTEM_PROMPT"
-
-    # 2. Kiểm tra Policy 2: Cấm điều hướng và vũ khí
-    policy_2_concepts = [
-        "safe peer redirection",
         "weapon",
         "firearms",
-    ]
-    for concept in policy_2_concepts:
-        assert concept.lower() in DEFAULT_SYSTEM_PROMPT.lower(), f"Thiếu concept cấm '{concept}' trong DEFAULT_SYSTEM_PROMPT"
-
-    # 3. Kiểm tra Policy 3: Chống phóng đại & chuẩn mực ngôn từ đời thường
-    policy_3_concepts = [
+        "safe peer redirection",
         "anti-hyperbole",
+        "anti-verbatim",
         "administrative",
         "corporate bulletin",
-        "anti-verbatim",
-    ]
-    for concept in policy_3_concepts:
-        assert concept.lower() in DEFAULT_SYSTEM_PROMPT.lower(), f"Thiếu concept phong cách '{concept}' trong DEFAULT_SYSTEM_PROMPT"
-
-    # 4. Kiểm tra Policy Review Công Ty: Cấm tuyển dụng, việc làm, lôi kéo và tài chính
-    review_concepts = [
         "company review",
         "workplace review",
-        "zero recruitment",
-        "zero solicitation",
-        "zero finance",
+        "zero hallucination",
     ]
-    for concept in review_concepts:
-        assert concept.lower() in DEFAULT_SYSTEM_PROMPT.lower(), f"Thiếu concept review '{concept}' trong DEFAULT_SYSTEM_PROMPT"
+    for concept in safety_concepts:
+        assert concept in prompt_lower, f"Thiếu concept '{concept}' trong DEFAULT_SYSTEM_PROMPT"
 
-    assert "sharing real job opportunities" not in DEFAULT_SYSTEM_PROMPT.lower()
-    assert "compensation mention" not in DEFAULT_SYSTEM_PROMPT.lower()
+    assert "sharing real job opportunities" not in prompt_lower
+    assert "compensation mention" not in prompt_lower
 
-    # 5. Kiểm tra System Prompt chứa đầy đủ 5 trụ cột và các chính sách an toàn
-    assert "pillar" in DEFAULT_SYSTEM_PROMPT.lower()
-    assert "zero hallucination" in DEFAULT_SYSTEM_PROMPT.lower()
-    assert "zero gender" in DEFAULT_SYSTEM_PROMPT.lower()
-    assert "zero age" in DEFAULT_SYSTEM_PROMPT.lower()
-    # Kiểm tra User Prompt tham chiếu tuân thủ System Prompt
+    # 3. User Prompt tham chiếu System Prompt
     assert "system prompt" in DEFAULT_USER_PROMPT_TEMPLATE.lower()
 
     print("-> PASS: test_platform_policy_compliance_and_slang_rules")
@@ -834,76 +823,51 @@ def test_sensitive_rules_module_and_random_choice():
 
 
 def test_meta_directive_reasoning_and_zero_parroting_prompts():
-    """Kiểm tra prompts chứa đầy đủ các quy tắc tiếp nhận động, chống rò rỉ chỉ dẫn và xưng hô bất biến."""
+    """Kiểm tra quy tắc tiếp nhận chỉ thị động, chống rò rỉ chỉ dẫn và lexicon được nạp vào PILLAR 6."""
     from app.services.plan_creator.prompts import (
-        DEFAULT_SYSTEM_PROMPT,
-        DEFAULT_USER_PROMPT_TEMPLATE,
         DEFAULT_JSON_STRUCTURE,
+        DEFAULT_SYSTEM_PROMPT,
     )
 
-    # 1. System prompt chứa quy tắc phân tầng ngữ nghĩa tự nhiên & chống rò rỉ chỉ thị
-    assert "DYNAMIC DIRECTIVE INGESTION & STRICT PRONOUN CONSISTENCY" in DEFAULT_SYSTEM_PROMPT
-    assert "DYNAMIC EMOTION & TONE ADAPTATION (ZERO HARDCODING)" in DEFAULT_SYSTEM_PROMPT
-    assert "STRICT SINGLE PRONOUN PAIR CONSISTENCY" in DEFAULT_SYSTEM_PROMPT
-    assert "ZERO PRONOUN DRIFT" in DEFAULT_SYSTEM_PROMPT
-    assert "PRONOUN SPAM" in DEFAULT_SYSTEM_PROMPT
-    assert "3-6 REPEATING VOWELS" in DEFAULT_SYSTEM_PROMPT
-    assert "SEMANTIC LAYER DISTINCTION" in DEFAULT_SYSTEM_PROMPT
-    assert "CONTENT-DRIVEN HOOK & ZERO ACTION PARROTING (ZERO EXAMPLES)" in DEFAULT_SYSTEM_PROMPT
-    assert "CONTENT-DRIVEN REVELATION" in DEFAULT_SYSTEM_PROMPT
-    assert "STRICT BAN ON VOCAL ACTION DIALOGUE" in DEFAULT_SYSTEM_PROMPT
-    assert "ZERO PROMPT LEAKAGE & STRICT BAN ON VERBATIM PARROTING" in DEFAULT_SYSTEM_PROMPT
-    assert "Zero Prompt Leakage" in DEFAULT_SYSTEM_PROMPT
+    # 1. Quy tắc chỉ thị động & chống rò rỉ
+    directive_markers = [
+        "DYNAMIC USER DIRECTIVE PRIMACY (ZERO HARDCODING)",
+        "SEMANTIC LAYER DISTINCTION",
+        "Zero Prompt Leakage",
+        "STRICT SINGLE PRONOUN PAIR CONSISTENCY (ZERO PRONOUN DRIFT)",
+        "Anti-verbatim",
+    ]
+    for marker in directive_markers:
+        assert marker in DEFAULT_SYSTEM_PROMPT, f"Thiếu '{marker}' trong DEFAULT_SYSTEM_PROMPT"
 
-    # 2. Đảm bảo Living Lexicon (lexicon.md) được nạp thành công và hỗ trợ đầy đủ các từ ngữ tự nhiên, trend
-    assert "PILLAR 6 — LIVING VIRAL LEXICON & TREND EXAMPLES" in DEFAULT_SYSTEM_PROMPT
-    assert "ủa alo" in DEFAULT_SYSTEM_PROMPT.lower()
-    assert "tụi bây ơi" in DEFAULT_SYSTEM_PROMPT.lower()
-    assert "các mom ơi" in DEFAULT_SYSTEM_PROMPT.lower()
-    assert "tinh nghịch" in DEFAULT_SYSTEM_PROMPT.lower()
-    assert "xỉu ngang" in DEFAULT_SYSTEM_PROMPT.lower()
+    # 2. Lexicon được nạp thành công
+    assert "PILLAR 6 — LIVING VIRAL LEXICON" in DEFAULT_SYSTEM_PROMPT
+    for phrase in ["ủa alo", "tụi bây ơi", "các mom ơi", "xỉu ngang"]:
+        assert phrase in DEFAULT_SYSTEM_PROMPT.lower(), f"Lexicon thiếu '{phrase}'"
 
-    # Đảm bảo KHÔNG có rò rỉ các ví dụ phi thực tế hoặc ngành nghề cụ thể bị gán cứng
-    assert "nghe tao hét lên" not in DEFAULT_SYSTEM_PROMPT
-    assert "tao đang khóc nè" not in DEFAULT_SYSTEM_PROMPT
-    assert "screw fastening" not in DEFAULT_SYSTEM_PROMPT
-    assert "rattan weaving" not in DEFAULT_SYSTEM_PROMPT
+    # 3. Không rò rỉ ví dụ phi thực tế hoặc ngành nghề gán cứng
+    for leaked in ["nghe tao hét lên", "tao đang khóc nè", "screw fastening", "rattan weaving"]:
+        assert leaked not in DEFAULT_SYSTEM_PROMPT
 
-    # 3. User prompt tham chiếu System Prompt và JSON Structure schema ghi rõ cấm prompt leakage và bắt buộc đồng nhất đại từ
-    assert "system prompt" in DEFAULT_USER_PROMPT_TEMPLATE.lower()
-    assert "Dynamic Hook" in DEFAULT_USER_PROMPT_TEMPLATE
-    assert "Strictly NEVER command listener to hear screaming" in DEFAULT_USER_PROMPT_TEMPLATE
-
-    # 4. JSON Structure schema ghi rõ cấm prompt leakage / parroting và bắt buộc đồng nhất đại từ
-    srt_desc = DEFAULT_JSON_STRUCTURE["scenes"][0]["srt_script"]
-    assert "zero prompt leakage" in srt_desc
-    assert "strict single pronoun pair consistency" in srt_desc
+    # 4. Schema srt_script tham chiếu cặp đại từ đã khóa
+    assert "selected_pronoun_pair" in DEFAULT_JSON_STRUCTURE["scenes"][0]["srt_script"]
 
     print("-> PASS: test_meta_directive_reasoning_and_zero_parroting_prompts")
 
 
 def test_unbroken_narrative_continuity_prompts():
-    """Kiểm tra prompts chứa đầy đủ các quy tắc mạch tự sự liền mạch và chuyển tiếp liên hoàn giữa các scene."""
+    """Kiểm tra quy tắc mạch tự sự liền mạch và cầu nối giữa các scene."""
     from app.services.plan_creator.prompts import (
-        DEFAULT_SYSTEM_PROMPT,
-        DEFAULT_USER_PROMPT_TEMPLATE,
         DEFAULT_JSON_STRUCTURE,
+        DEFAULT_SYSTEM_PROMPT,
     )
 
-    # 1. System prompt chứa quy tắc Unbroken Monologue & Narrative Continuity
     assert "UNBROKEN MONOLOGUE & NARRATIVE CONTINUITY" in DEFAULT_SYSTEM_PROMPT
-    assert "SINGLE CONTINUOUS STREAM" in DEFAULT_SYSTEM_PROMPT
-    assert "CHRONOLOGICAL PROGRESSION" in DEFAULT_SYSTEM_PROMPT
-    assert "MANDATORY CONNECTIVE BRIDGING" in DEFAULT_SYSTEM_PROMPT
-    assert "STRICT BAN ON DISJOINTED RESTARTS" in DEFAULT_SYSTEM_PROMPT
-    assert "THE CONTINUOUS READING TEST" in DEFAULT_SYSTEM_PROMPT
+    assert "MANDATORY CONNECTIVE BRIDGING (SCENE 2 ONWARDS — ZERO INDEPENDENT BULLET POINTS)" in DEFAULT_SYSTEM_PROMPT
+    assert "never restart" in DEFAULT_SYSTEM_PROMPT.lower()
 
-    # 2. User prompt templates chứa tham chiếu mạch tự sự unbroken monologue
-    assert "unbroken monologue" in DEFAULT_USER_PROMPT_TEMPLATE.lower()
-
-    # 3. JSON Schemas quy định rõ tính nối tiếp mạch lạc của srt_script
     srt_desc = DEFAULT_JSON_STRUCTURE["scenes"][0]["srt_script"]
-    assert "strict narrative continuity with preceding scene" in srt_desc
+    assert "previous scene" in srt_desc
 
     print("-> PASS: test_unbroken_narrative_continuity_prompts")
 
@@ -940,187 +904,144 @@ def test_normalize_scenes_list_recovers_from_concatenated_string_dicts():
 
 
 def test_hardened_pronoun_lock_and_trend_hook_grounding():
-    """Kiểm tra schema và prompt đảm bảo khóa chặt đại từ nhân xưng và chống bịa đặt chi tiết ngày lễ."""
+    """Kiểm tra schema và prompt khóa chặt 1 cặp đại từ, chống spam đại từ và chống bịa chi tiết ngày lễ."""
     from app.services.plan_creator.prompts import (
         DEFAULT_JSON_STRUCTURE,
         DEFAULT_SYSTEM_PROMPT,
         DEFAULT_USER_PROMPT_TEMPLATE,
     )
 
-    # 1. Kiểm tra trường cam kết selected_pronoun_pair ở cấp root của schema
-    assert "selected_pronoun_pair" in DEFAULT_JSON_STRUCTURE, (
-        "Schema phải chứa 'selected_pronoun_pair' để ép LLM cam kết cặp đại từ cố định!"
-    )
-
-    # 2. Kiểm tra chỉ dẫn chống pronoun drift trong sub_title và srt_script
+    # 1. Schema cam kết selected_pronoun_pair ở root và được tham chiếu trong scene
+    assert "selected_pronoun_pair" in DEFAULT_JSON_STRUCTURE
     scene_schema = DEFAULT_JSON_STRUCTURE["scenes"][0]
     assert "selected_pronoun_pair" in scene_schema["sub_title"]
     assert "selected_pronoun_pair" in scene_schema["srt_script"]
 
-    # 3. Kiểm tra quy tắc Trend & Holiday Hook Grounding và Vowel Elongation trong System Prompt
-    assert "TREND & HOLIDAY HOOK GROUNDING" in DEFAULT_SYSTEM_PROMPT
-    assert "ZERO FICTIONAL INVENTIONS" in DEFAULT_SYSTEM_PROMPT
-    assert "MANDATORY VOWEL ELONGATION FOR EMOTIONAL PEAKS" in DEFAULT_SYSTEM_PROMPT
-    assert "Intense Curiosity" in DEFAULT_SYSTEM_PROMPT
+    # 2. System Prompt: grounding ngày lễ & nhịp gọi người nghe tự nhiên
+    assert "TREND & HOLIDAY HOOK GROUNDING (ZERO FICTIONAL INVENTIONS)" in DEFAULT_SYSTEM_PROMPT
+    assert "NATURAL CONVERSATIONAL CADENCE & STRICT BAN ON PRONOUN SPAM" in DEFAULT_SYSTEM_PROMPT
+    assert "Directly address the audience naturally around 1 to 2 times" in DEFAULT_SYSTEM_PROMPT
 
-    # 4. Kiểm tra User Prompt Template có ràng buộc khóa đại từ, vowel elongation và năng lượng leo thang
+    # 3. User Prompt nhắc lại khóa đại từ và giữ gọn
     assert "selected_pronoun_pair" in DEFAULT_USER_PROMPT_TEMPLATE
-    assert "Strict Single Pronoun Lock" in DEFAULT_USER_PROMPT_TEMPLATE
-    assert "Dynamic Hook" in DEFAULT_USER_PROMPT_TEMPLATE
-    assert "real vowel" in DEFAULT_USER_PROMPT_TEMPLATE.lower()
-    assert "escalated higher" in DEFAULT_USER_PROMPT_TEMPLATE.lower()
     assert len(DEFAULT_USER_PROMPT_TEMPLATE) < 1500
 
     print("-> PASS: test_hardened_pronoun_lock_and_trend_hook_grounding")
 
 
-def test_natural_cadence_vowel_elongation_and_connective_bridging():
-    """Kiểm tra prompts thực thi nghiêm ngặt nhịp điệu đại từ tự nhiên (chống spam), kéo dài nguyên âm và cầu nối liên kết scene."""
-    from app.services.plan_creator.prompts import (
-        DEFAULT_JSON_STRUCTURE,
-        DEFAULT_SYSTEM_PROMPT,
-        DEFAULT_USER_PROMPT_TEMPLATE,
-    )
+def test_tts_safe_spelling_and_no_vowel_elongation():
+    """Prompt và lexicon không yêu cầu/minh họa kéo dài chữ cái vì sanitize_script_tags gộp ký tự lặp."""
+    import re
 
-    # 1. System Prompt: Chống lạm dụng đại từ, quy định rõ chỉ gọi 1-2 lần ở đầu hoặc cuối
-    assert "NATURAL CONVERSATIONAL CADENCE & STRICT BAN ON PRONOUN SPAM" in DEFAULT_SYSTEM_PROMPT
-    assert "Directly address the audience naturally around 1 to 2 times" in DEFAULT_SYSTEM_PROMPT
-    assert "STRICTLY FORBIDDEN to spam the listener pronoun mechanically" in DEFAULT_SYSTEM_PROMPT
+    from app.services.plan_creator.engine import sanitize_script_tags
+    from app.services.plan_creator.prompts import DEFAULT_SYSTEM_PROMPT, LEXICON_CONTENT
 
-    # 2. System Prompt: Bắt buộc kéo dài nguyên âm 3-6 lần để biểu cảm kịch tính
-    assert "3-6 REPEATING VOWELS" in DEFAULT_SYSTEM_PROMPT
-    assert "actively elongate words by repeating vowels 3 to 6 times" in DEFAULT_SYSTEM_PROMPT
+    # 1. Prompt cấm kéo dài chữ thay vì bắt buộc (đồng bộ với hậu xử lý của engine)
+    assert "REPEATING VOWELS" not in DEFAULT_SYSTEM_PROMPT
+    assert "never stretch letters" in DEFAULT_SYSTEM_PROMPT
 
-    # 3. System Prompt: Cầu nối liên kết bắt buộc từ Scene 2 trở đi
-    assert "MANDATORY CONNECTIVE BRIDGING (SCENE 2 ONWARDS — ZERO INDEPENDENT BULLET POINTS)" in DEFAULT_SYSTEM_PROMPT
-    assert "ZERO INDEPENDENT BULLET POINTS" in DEFAULT_SYSTEM_PROMPT
+    # 2. Lexicon không chứa ví dụ kéo dài chữ (model bắt chước ví dụ mạnh hơn luật)
+    stretched_letters = re.compile(r"([a-zA-ZÀ-ỹ])\1{2,}")
+    match = stretched_letters.search(LEXICON_CONTENT)
+    assert match is None, f"Lexicon chứa từ kéo dài chữ: '{match.group(0) if match else ''}'"
 
-    # 4. JSON Schema: sub_title cấm spam đại từ
-    sub_title_desc = DEFAULT_JSON_STRUCTURE["scenes"][0]["sub_title"]
-    assert "STRICTLY FORBIDDEN to spam the listener pronoun in every subtitle" in sub_title_desc
+    # 3. Engine vẫn gộp ký tự lặp nếu model lỡ sinh ra
+    sanitized = sanitize_script_tags({"scenes": [{"srt_script": "Trời ơiii sướnggg quá"}]})
+    assert sanitized["scenes"][0]["srt_script"] == "Trời ơi sướng quá"
 
-    # 5. User Prompt Template: Kiểm tra có đủ các chỉ dẫn cốt lõi
-    assert "zero pronoun spam" in DEFAULT_USER_PROMPT_TEMPLATE
-    assert "REAL VOWEL" in DEFAULT_USER_PROMPT_TEMPLATE
-    assert "connective bridges from Scene 2+" in DEFAULT_USER_PROMPT_TEMPLATE
-    assert len(DEFAULT_USER_PROMPT_TEMPLATE) < 1500
-
-    print("-> PASS: test_natural_cadence_vowel_elongation_and_connective_bridging")
+    print("-> PASS: test_tts_safe_spelling_and_no_vowel_elongation")
 
 
-def test_sonic_jolt_opener_real_vowels_and_high_velocity_cadence():
-    """Kiểm tra prompts cấm triệt để mở đầu tản văn, cấm trò chơi chữ 'chữ ê kéo dài', và ép nhịp điệu kích động cao."""
+def test_jolt_opener_and_high_energy_cadence():
+    """Kiểm tra prompt yêu cầu mở đầu gây sốc có nội dung thật, cấm mở đầu tản văn và giữ năng lượng cao."""
     from app.services.plan_creator.prompts import (
         DEFAULT_SYSTEM_PROMPT,
         DEFAULT_USER_PROMPT_TEMPLATE,
     )
 
-    # 1. System Prompt: Cú sốc thính giác / cảm xúc ngay giây đầu, cấm mở đầu tản văn ru ngủ
-    assert "SONIC & EMOTIONAL JOLT OPENER" in DEFAULT_SYSTEM_PROMPT
-    assert "STRICT BAN ON DREAMY / ESSAY OPENERS" in DEFAULT_SYSTEM_PROMPT
-    assert "Trí tưởng tượng của..." in DEFAULT_SYSTEM_PROMPT
-    assert "Chắc mọi người tưởng..." in DEFAULT_SYSTEM_PROMPT
+    energy_markers = [
+        "SONIC & EMOTIONAL JOLT OPENER",
+        "STRICT BAN ON DREAMY / ESSAY OPENERS",
+        "ZERO TAG HALLUCINATION & BAN ON SIGH",
+        "ENERGY:",
+    ]
+    for marker in energy_markers:
+        assert marker in DEFAULT_SYSTEM_PROMPT, f"Thiếu '{marker}' trong DEFAULT_SYSTEM_PROMPT"
 
-    # 2. System Prompt: Cấm trò chơi chữ 'chữ ê kéo dài', bắt buộc kéo dài nguyên âm thực tế 3-6 lần
-    assert "STRICT BAN ON META-WORD PUNS (ZERO 'CHỮ Ê KÉO DÀI')" in DEFAULT_SYSTEM_PROMPT
-    assert "chữ ê kéo dài" in DEFAULT_SYSTEM_PROMPT.lower()
-    assert "kéo dài chữ ê" in DEFAULT_SYSTEM_PROMPT.lower()
-
-    # 3. System Prompt: Nhịp điệu dồn dập, cấm từ ngữ hạ nhiệt tản văn / dưỡng sinh
-    assert "HIGH-VELOCITY PUNCHY RHYTHM & ZERO LOW-ENERGY ATMOSPHERE" in DEFAULT_SYSTEM_PROMPT
-    assert "phòng trà" in DEFAULT_SYSTEM_PROMPT.lower()
-    assert "dưỡng sinh" in DEFAULT_SYSTEM_PROMPT.lower()
-    assert "chọn mặt gửi vàng" in DEFAULT_SYSTEM_PROMPT.lower()
-    assert "đời không như là mơ" in DEFAULT_SYSTEM_PROMPT.lower()
-
-    # 4. System Prompt: Kịch tính nghẹt thở, cấm từ ngữ than vãn uể oải và cấm thẻ thở dài làm tụt năng lượng
-    assert "HIGH-STAKES SUSPENSE & COMIC MELODRAMA (ZERO TIRED SLUMP)" in DEFAULT_SYSTEM_PROMPT
-    assert "STRICT BAN ON DEPRESSIVE & TIRED SLUMP PHRASES" in DEFAULT_SYSTEM_PROMPT
+    # Có ví dụ tiêu biểu cho từ ngữ uể oải / hạ nhiệt cần tránh
     assert "gãy cái lưng" in DEFAULT_SYSTEM_PROMPT.lower()
-    assert "rã rời" in DEFAULT_SYSTEM_PROMPT.lower()
-    assert "dài đăng đặc" in DEFAULT_SYSTEM_PROMPT.lower()
-    assert "BAN ON SIGH" in DEFAULT_SYSTEM_PROMPT
+    assert "phòng trà" in DEFAULT_SYSTEM_PROMPT.lower()
 
-    # 5. User Prompt Template: Tích hợp đầy đủ chỉ dẫn kịch tính nghẹt thở, chống uể oải và cấm thở dài
-    assert "SONIC JOLT" in DEFAULT_USER_PROMPT_TEMPLATE
-    assert "HIGH-STAKES" in DEFAULT_USER_PROMPT_TEMPLATE
-    assert "zero [thở dài]" in DEFAULT_USER_PROMPT_TEMPLATE
-    assert "REAL VOWEL" in DEFAULT_USER_PROMPT_TEMPLATE
-    assert "meta-puns" in DEFAULT_USER_PROMPT_TEMPLATE
-    assert "PUNCHY" in DEFAULT_USER_PROMPT_TEMPLATE
-    assert "phòng trà/dưỡng sinh" in DEFAULT_USER_PROMPT_TEMPLATE
-    assert len(DEFAULT_USER_PROMPT_TEMPLATE) < 1500
+    # User Prompt nhắc mở đầu bằng sự thật cụ thể từ nguồn
+    assert "concrete fact from the input" in DEFAULT_USER_PROMPT_TEMPLATE
 
-    print("-> PASS: test_sonic_jolt_opener_real_vowels_and_high_velocity_cadence")
+    print("-> PASS: test_jolt_opener_and_high_energy_cadence")
 
 
 def test_dynamic_zero_finance_and_payout_frequency_firewall():
-    """Kiểm tra tường lửa cấm tài chính tổng quát động: cấm mọi chu kỳ thanh toán và từ ngữ tài chính, không hardcode."""
+    """Kiểm tra tường lửa tài chính tổng quát và không gán cứng ví dụ ngành nghề/công ty cụ thể."""
     from app.services.plan_creator.prompts import (
         DEFAULT_SYSTEM_PROMPT,
         DEFAULT_USER_PROMPT_TEMPLATE,
     )
 
-    # 1. System Prompt: Cấm triệt để tài chính và mọi chu kỳ thanh toán
-    assert "ZERO FINANCE" in DEFAULT_SYSTEM_PROMPT
-    assert "PAYOUT FREQUENCY" in DEFAULT_SYSTEM_PROMPT
+    # 1. Tường lửa tài chính & chu kỳ thanh toán
+    assert "ZERO FINANCE & PAYOUT FREQUENCY" in DEFAULT_SYSTEM_PROMPT
     assert "3 ngày/lần" in DEFAULT_SYSTEM_PROMPT
-    assert "chi trả công" in DEFAULT_SYSTEM_PROMPT
-    assert "dòng tiền" in DEFAULT_SYSTEM_PROMPT
-    assert "xoay xở" in DEFAULT_SYSTEM_PROMPT
-    assert "bạc" in DEFAULT_SYSTEM_PROMPT.lower()
     assert "creatively and safely transform these details into relatable, entertaining workplace experiences" in DEFAULT_SYSTEM_PROMPT
-    assert "DYNAMIC USER DIRECTIVE PRIMACY (ZERO HARDCODING)" in DEFAULT_SYSTEM_PROMPT
 
-    # 2. Không được hardcode tên cụ thể ngành nghề hay thiết bị trong prompt (đảm bảo tính tổng quát)
-    assert "máy hút bụi" not in DEFAULT_SYSTEM_PROMPT.lower()
-    assert "bắn súng vít" not in DEFAULT_SYSTEM_PROMPT.lower()
-    assert "đan lát" not in DEFAULT_SYSTEM_PROMPT.lower()
+    # 2. Không gán cứng ví dụ ngành nghề, thiết bị hoặc tiện ích của công ty cũ
+    hardcoded_examples = [
+        "máy hút bụi",
+        "bắn súng vít",
+        "đan lát",
+        "spray painting",
+        "footwear",
+        "molding",
+        "cool lodging",
+    ]
+    for example in hardcoded_examples:
+        assert example not in DEFAULT_SYSTEM_PROMPT.lower(), f"Prompt còn ví dụ gán cứng '{example}'"
 
-    # 3. User Prompt Template: Chứa chỉ thị tường lửa Zero Finance & Directive Primacy
-    assert "ABSOLUTE ZERO FINANCE" in DEFAULT_USER_PROMPT_TEMPLATE
-    assert "3 ngày/lần" in DEFAULT_USER_PROMPT_TEMPLATE
-    assert "chi trả công" in DEFAULT_USER_PROMPT_TEMPLATE
-    assert "bạc" in DEFAULT_USER_PROMPT_TEMPLATE
-    assert "xoay xở" in DEFAULT_USER_PROMPT_TEMPLATE
-    assert "Directive Primacy" in DEFAULT_USER_PROMPT_TEMPLATE
+    # 3. User Prompt nhắc lại cấm số liệu tiền bạc
+    assert "money figures" in DEFAULT_USER_PROMPT_TEMPLATE
 
     print("-> PASS: test_dynamic_zero_finance_and_payout_frequency_firewall")
 
 
 def test_interjection_diversity_and_anti_fixation_rules():
-    """Kiểm tra các quy tắc chống độc tôn 'Trời đất quỷ thần ơi' và đa dạng hóa 5 nhóm thán từ."""
-    from app.services.plan_creator.prompts import (
-        DEFAULT_SYSTEM_PROMPT,
-        DEFAULT_USER_PROMPT_TEMPLATE,
-        DEFAULT_JSON_STRUCTURE,
-    )
+    """Kiểm tra quy tắc chống độc tôn 'Trời đất quỷ thần ơi' và lexicon có đủ 5 nhóm thán từ."""
+    from app.services.plan_creator.prompts import DEFAULT_SYSTEM_PROMPT, LEXICON_CONTENT
 
-    # 1. System Prompt chứa nguyên tắc Anti-Fixation và cấm mặc định Trời đất quỷ thần ơi
+    # 1. System Prompt chứa nguyên tắc Anti-Fixation
     assert "ANTI-FIXATION & THEATRICAL INTERJECTION DIVERSITY" in DEFAULT_SYSTEM_PROMPT
     assert "Strictly FORBIDDEN to repeatedly default to 'Trời đất quỷ thần ơi'" in DEFAULT_SYSTEM_PROMPT
     assert "5 rich emotional categories" in DEFAULT_SYSTEM_PROMPT
-    assert "strictly NEVER default always to 'Trời đất quỷ thần ơi'" in DEFAULT_SYSTEM_PROMPT
 
-    # 2. Living Lexicon nạp đủ 5 nhóm cảm xúc và quy tắc chống độc quyền
-    assert "Strict Anti-Monopoly & Interjection Rotation Rule" in DEFAULT_SYSTEM_PROMPT
-    assert "Shock & Awe" in DEFAULT_SYSTEM_PROMPT
-    assert "Confusion & Disbelief" in DEFAULT_SYSTEM_PROMPT
-    assert "Startle & Close Call" in DEFAULT_SYSTEM_PROMPT
-    assert "Panic & High-Pace Venting" in DEFAULT_SYSTEM_PROMPT
-    assert "Delight & Relatable Relief" in DEFAULT_SYSTEM_PROMPT
+    # 2. Lexicon có đủ 5 nhóm cảm xúc được prompt tham chiếu
+    for category in ["Shock & Awe", "Confusion & Disbelief", "Startle & Close Call", "Pace Rush", "Delight & Relief"]:
+        assert category in LEXICON_CONTENT, f"Lexicon thiếu nhóm '{category}'"
+        assert category in DEFAULT_SYSTEM_PROMPT
 
-    # 3. Đảm bảo từ vi phạm quy tắc xưng hô không xuất hiện
+    # 3. Lexicon không chứa xưng hô giang hồ hoặc nội dung than vãn
     assert "cứu taooo" not in DEFAULT_SYSTEM_PROMPT.lower()
-    assert "cứu tui vớiii" in DEFAULT_SYSTEM_PROMPT.lower()
-
-    # 4. User Prompt Template và JSON Structure có luật nhắc nhở
-    assert "Dynamic Interjections" in DEFAULT_USER_PROMPT_TEMPLATE
-    assert "Zero lazy defaulting to 'Trời đất quỷ thần ơi'" in DEFAULT_USER_PROMPT_TEMPLATE
-    srt_desc = DEFAULT_JSON_STRUCTURE["scenes"][0]["srt_script"]
-    assert "strictly zero lazy defaulting to 'Trời đất quỷ thần ơi'" in srt_desc
+    assert "venting" not in LEXICON_CONTENT.lower()
 
     print("-> PASS: test_interjection_diversity_and_anti_fixation_rules")
+
+
+def test_prompt_size_budget():
+    """Giữ prompt gọn: mỗi luật chỉ định nghĩa một lần, schema chỉ tham chiếu PILLAR."""
+    from app.services.plan_creator.prompts import (
+        DEFAULT_JSON_STRUCTURE,
+        DEFAULT_SYSTEM_PROMPT,
+    )
+
+    assert len(DEFAULT_SYSTEM_PROMPT) < 16000, f"System prompt quá dài: {len(DEFAULT_SYSTEM_PROMPT)} ký tự"
+    schema_str = json.dumps(DEFAULT_JSON_STRUCTURE, ensure_ascii=False, indent=2)
+    assert len(schema_str) < 2000, f"Schema quá dài: {len(schema_str)} ký tự"
+
+    print("-> PASS: test_prompt_size_budget")
 
 
 def test_provider_dynamic_resolution_switch():
@@ -1183,10 +1104,11 @@ if __name__ == "__main__":
     test_unbroken_narrative_continuity_prompts()
     test_normalize_scenes_list_recovers_from_concatenated_string_dicts()
     test_hardened_pronoun_lock_and_trend_hook_grounding()
-    test_natural_cadence_vowel_elongation_and_connective_bridging()
-    test_sonic_jolt_opener_real_vowels_and_high_velocity_cadence()
+    test_tts_safe_spelling_and_no_vowel_elongation()
+    test_jolt_opener_and_high_energy_cadence()
     test_dynamic_zero_finance_and_payout_frequency_firewall()
     test_interjection_diversity_and_anti_fixation_rules()
+    test_prompt_size_budget()
     test_provider_dynamic_resolution_switch()
     print("\n==================================================")
     print(" TOÀN BỘ UNIT TESTS CỦA PLAN CREATOR ĐÃ VƯỢT QUA! ")
