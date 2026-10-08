@@ -61,22 +61,46 @@ class BaseLLMProvider(ABC):
         if match:
             text = match.group(1).strip()
 
-        # 3. Loại bỏ các comment // và /* ... */
+        # 3. Loại bỏ các comment //, /* ... */, và # (Python-style)
         text = re.sub(r"//.*", "", text)
         text = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
+        text = re.sub(r"^\s*#.*", "", text, flags=re.MULTILINE)
+
+        # 4. Chuẩn hóa dấu nháy cong thông minh (Smart / Curly quotes)
+        text = text.replace("“", '"').replace("”", '"')
+        text = text.replace("‘", "'").replace("’", "'")
 
         try:
             parsed = json.loads(text)
         except json.JSONDecodeError:
-            # 4. Fallback làm sạch unquoted keys và trailing commas
-            cleaned_text = re.sub(r"([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:", r'\1"\2":', text)
+            # 5. Chuẩn hóa các khiếm khuyết cú pháp phổ biến sang chuẩn JSON RFC 8259:
+            # a) Khóa dùng nháy đơn: 'key': -> "key":
+            cleaned_text = re.sub(r"([{,]\s*)'([a-zA-Z_][a-zA-Z0-9_]*)'\s*:", r'\1"\2":', text)
+            # b) Khóa không dùng nháy: key: -> "key":
+            cleaned_text = re.sub(r"([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:", r'\1"\2":', cleaned_text)
+            # c) Giá trị chuỗi dùng nháy đơn: : 'value' -> : "value"
+            cleaned_text = re.sub(r":\s*'([^'\n\r]*)'", r': "\1"', cleaned_text)
+            # d) Dấu phẩy thừa trước ngoặc đóng: , } hoặc , ]
             cleaned_text = re.sub(r",\s*([\]\}])", r"\1", cleaned_text)
+            # e) Dấu phẩy lặp: ,, -> ,
+            cleaned_text = re.sub(r",\s*,", ",", cleaned_text)
+
             try:
                 parsed = json.loads(cleaned_text)
             except Exception as e:
-                logger.error(f"Không thể phân tích cú pháp JSON từ phản hồi LLM: {text[:200]}... Lỗi: {e}")
+                line_num = getattr(e, "lineno", None)
+                col_num = getattr(e, "colno", None)
+                pos = getattr(e, "pos", None)
+                context_snippet = ""
+                if pos is not None and isinstance(pos, int):
+                    start = max(0, pos - 80)
+                    end = min(len(cleaned_text), pos + 80)
+                    context_snippet = f"\nNgữ cảnh lỗi (pos {pos}): ...{cleaned_text[start:end]}..."
+                logger.error(
+                    f"Không thể phân tích cú pháp JSON từ phản hồi LLM: Dòng {line_num}, Cột {col_num}. Lỗi: {e}{context_snippet}"
+                )
                 raise LLMResponseParsingError(
-                    f"Phản hồi từ LLM không đúng định dạng JSON hợp lệ: {e}\nNội dung thô: {text[:200]}..."
+                    f"Phản hồi từ LLM không đúng định dạng JSON hợp lệ: {e} (Dòng {line_num}, Cột {col_num}){context_snippet}"
                 ) from e
 
         if not isinstance(parsed, dict):

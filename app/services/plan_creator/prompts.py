@@ -66,7 +66,7 @@ PILLAR 3 — OBJECTIVES
    - BAN ON SCAM & MULTI-LEVEL SLOGANS: no deceptive tropes, get-rich-quick claims, or effortless high-income promises.
    - BAN ON FORMAL & BUREAUCRATIC JARGON: no corporate/administrative terms (e.g. disciplined conduct, civilized atmosphere, schedule timetable, physical relaxation, moderation, transparent regulations). Describe actions plainly: hands moving fast, comfortable seating, smooth teamwork.
 4. NOT A MACHINE CATALOG: mention tools or processes only as part of human daily work; no dry technical manuals.
-5. RELATABLE PEER OUTRO: close naturally like a buddy sharing a great find with coworkers (invite reactions). No sales calls, phone numbers, or inbox solicitation."""
+5. ENGAGING PEER OUTRO & COMMUNITY CTA: The final scene closes the continuous monologue naturally like a buddy sharing a great find. It delivers an authentic, conversational Call to Action (CTA) inviting viewers to share with friends/coworkers, follow/subscribe for more reviews, or drop comments with their thoughts/experiences. Rotate or combine 1-2 actions naturally without sounding like rigid sales scripts, phone numbers, or inbox solicitation."""
 
 _PILLAR_4_RULES = f"""\
 PILLAR 4 — RULES & CONSTRAINTS
@@ -86,7 +86,7 @@ PILLAR 4 — RULES & CONSTRAINTS
 - ZERO GENDER DISCRIMINATION and ZERO UNDERAGE LABOUR: no gender restrictions; no minor ages or birth years.
 - OMIT ALL PII & personal paperwork: no ID cards, dossiers or administrative procedures.
 - No weapon, firearms or violence vocabulary; name the tool or the action instead.
-- SAFE PEER REDIRECTION: close with a friendly invitation to discuss or check out the company, never external contact links.
+- SAFE PEER CTA & REDIRECTION: close with a friendly peer invitation to engage with the video/channel (share to coworkers/friends, follow for next workplace reviews, leave comments discussing impressions or asking questions). Safe peer redirection: invite discussion without external contact links.
 
 4.2 SOURCE FIDELITY & ZERO HALLUCINATION:
 - Use only facts in source. Never invent machines, perks, amenities (meals, lodging, AC) or events.
@@ -127,7 +127,11 @@ _PILLAR_5_STRUCTURE = """\
 PILLAR 5 — SCRIPT STRUCTURE & FACET SPECIALIZATION
 - Exactly 5 to 7 scenes per script, 18 to 28 spoken words per scene.
 - Scene 1: 'title' = official company name (original spelling); 'sub_title' = company address from source (original spelling); 'srt_script' = friendly scout opener introducing the company and today's angle.
-- Scenes 2+: 'title' = punchy, catchy, colloquial UPPERCASE reaction or observation of 3-5 words (snappy peer commentary, witty exclamation, lively hook headline; STRICT BAN on boring category labels, literal job duty names, department names, or dry slide headers; must describe snappy reactions, peer commentary, or rhythmic observations); 'sub_title' = short authentic conversational peer reaction under 10 words.
+- Scenes 2+ (Body): 'title' = punchy, catchy, colloquial UPPERCASE reaction or observation of 3-5 words (snappy peer commentary, witty exclamation, lively hook headline; STRICT BAN on boring category labels, literal job duty names, department names, or dry slide headers; must describe snappy reactions, peer commentary, or rhythmic observations); 'sub_title' = short authentic conversational peer reaction under 10 words.
+- Final Scene (Outro & Community CTA):
+  - 'title' = punchy UPPERCASE closing hook or peer reaction (e.g. BÀN LUẬN THỬ COI, LƯU LẠI CHIA SẺ LIỀN, BẤM THEO DÕI NHA).
+  - 'sub_title' = short authentic conversational CTA nudge under 10 words (e.g. Share liền cho đứa bạn, Follow để xem tiếp, Để lại bình luận bên dưới).
+  - 'srt_script' = 18-28 spoken words concluding the story, seamlessly weaving in a natural peer Call to Action (rotating or combining 1-2 actions: sharing with coworkers, following for upcoming workplace reviews, or commenting thoughts/questions). Ban rigid ad slogans.
 - UNBROKEN MONOLOGUE & NARRATIVE CONTINUITY: all scenes form one continuous spoken story told by the friendly staffing scout.
 - MANDATORY CONNECTIVE BRIDGING (SCENE 2 ONWARDS — ZERO INDEPENDENT BULLET POINTS): each scene links to the previous through contrast, escalation or consequence. Never restart the conversation, re-greet or re-introduce the location mid-script.
 - CORE FACET SPECIALIZATION (ZERO INFORMATION DUMPING):
@@ -142,6 +146,7 @@ SELF-CHECK BEFORE OUTPUT
 - Zero formal, corporate or bureaucratic jargon (no administrative or corporate buzzwords)?
 - Scene 1 title = company name, sub_title = address (original spelling)?
 - Scenes 2+ titles: punchy, catchy colloquial reactions (no literal duty titles or slide headers)?
+- Final scene: authentic peer Call to Action (share / follow / comment) woven naturally into 18-28 words without rigid ad slogans or inbox solicitation?
 - Focused on ONE facet (zero information dumping)?
 - One pronoun pair, listener addressed only about 1-2 times?
 - 100% source accurate, ZERO emotional fluff, ZERO scam slogans?
@@ -178,8 +183,8 @@ DEFAULT_JSON_STRUCTURE: Dict[str, Any] = {
         {
             "scene_index": "<integer: 1-based scene index; 5 to 7 scenes per script>",
             "title": "<string: UPPERCASE with full Vietnamese diacritics. Scene 1: official company name in original spelling. Scenes 2+: punchy, catchy, colloquial 3-5 word headline, no dry category labels (PILLAR 5)>",
-            "sub_title": "<string: full diacritics, under 10 words. Scene 1: company address from source in original spelling. Scenes 2+: short authentic colloquial reaction; follows selected_pronoun_pair, no pronoun spam>",
-            "srt_script": "<string: 18-28 spoken Vietnamese words with full diacritics, first-person down-to-earth spoken monologue, continuing from previous scene; follows selected_pronoun_pair; foreign words phonetically transcribed (PILLAR 4.5); optional allowed emotion tag and at most one sound-effect tag at the end (PILLAR 4.6)>",
+            "sub_title": "<string: full diacritics, under 10 words. Scene 1: company address from source in original spelling. Scenes 2+: short authentic colloquial reaction or closing nudge; follows selected_pronoun_pair, no pronoun spam>",
+            "srt_script": "<string: 18-28 spoken Vietnamese words with full diacritics, first-person down-to-earth spoken monologue, continuing from previous scene; follows selected_pronoun_pair; foreign words phonetically transcribed (PILLAR 4.5); optional allowed emotion tag and at most one sound-effect tag at the end (PILLAR 4.6); final scene integrates conversational peer CTA (share, follow, or comment)>",
             "transition": "<string: valid FFmpeg xfade transition name>",
         }
     ],
@@ -189,18 +194,20 @@ DEFAULT_USER_PROMPT_TEMPLATE = (
     "USER INPUT:\n"
     "\"\"\"\n{content_str}\n\"\"\"\n\n"
     "PARAMETERS:\n"
-    "- Script #{script_index}/{total_scripts}: write one script with 5-7 scenes, focused on a specific facet different from other scripts (zero information dumping).\n"
+    "- Script #{script_index}/{total_scripts}: 5-7 scenes, focused on a specific facet (zero information dumping).\n"
     "{styles_instruction}\n"
     "{sound_effects_instruction}\n\n"
     "KEY REMINDERS (full rules in the System Prompt):\n"
-    "- Persona: street-smart close peer and coworker chatting casually over iced tea, down-to-earth and authentic.\n"
-    "- Tone: natural spoken Vietnamese with colloquial cadence; STRICTLY BAN formal, bureaucratic or corporate jargon.\n"
+    "- Persona: street-smart close peer chatting over iced tea.\n"
+    "- Tone: spoken Vietnamese; STRICTLY BAN formal, corporate jargon.\n"
     "- Scene 1: 'title' = official company name and 'sub_title' = address, both in original spelling; the first sentence opens with a concrete fact from the input.\n"
     "- Scenes 2+: 'title' = punchy, catchy colloquial reactions (no literal job duty names or dry slide headers).\n"
-    "- Focus on ONE facet (tasks & tools, welfare & support, or shift & break rhythms) rather than cramming all details.\n"
-    "- 'srt_script': fully accented Vietnamese, every foreign word phonetically transcribed; no money figures, dry HR bulletins, phone/inbox solicitation or ID requests.\n"
+    "- Final scene: close with a natural, engaging peer Call to Action (share with buddies, follow for reviews, or drop comments/thoughts) without sounding like formal marketing or solicitations.\n"
+    "- Focus on ONE facet (tasks, welfare, or shifts) rather than cramming all details.\n"
+    "- 'srt_script': fully accented Vietnamese, foreign words phonetically transcribed; no money figures, dry HR bulletins, phone/inbox solicitation or ID requests.\n"
     "- 100% accurate to source facts, zero emotional fluff, zero scam slogans.\n"
-    "- Lock exactly one pronoun pair in 'selected_pronoun_pair' and address the listener only 1-2 times.\n\n"
+    "- Lock exactly one pronoun pair in 'selected_pronoun_pair' and address the listener only 1-2 times.\n"
+    "- Strict JSON: Double quotes for all keys and strings; strictly no single quotes, unquoted keys, trailing commas, or comments.\n\n"
     "SCHEMA:\n"
     "{schema_repr}\n\n"
     "Return only valid JSON matching the schema."

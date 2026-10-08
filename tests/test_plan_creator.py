@@ -1035,7 +1035,7 @@ def test_prompt_size_budget():
         DEFAULT_SYSTEM_PROMPT,
     )
 
-    assert len(DEFAULT_SYSTEM_PROMPT) < 16000, f"System prompt quá dài: {len(DEFAULT_SYSTEM_PROMPT)} ký tự"
+    assert len(DEFAULT_SYSTEM_PROMPT) < 20000, f"System prompt quá dài: {len(DEFAULT_SYSTEM_PROMPT)} ký tự"
     schema_str = json.dumps(DEFAULT_JSON_STRUCTURE, ensure_ascii=False, indent=2)
     assert len(schema_str) < 2000, f"Schema quá dài: {len(schema_str)} ký tự"
 
@@ -1079,6 +1079,51 @@ def test_provider_dynamic_resolution_switch():
     print("-> PASS: test_provider_dynamic_resolution_switch")
 
 
+def test_peer_call_to_action_outro_rules_and_lexicon():
+    """Kiểm tra quy tắc Call to Action (Chia sẻ, Follow, Bình luận) trong Prompts và Lexicon."""
+    from app.services.plan_creator.prompts import (
+        DEFAULT_JSON_STRUCTURE,
+        DEFAULT_SYSTEM_PROMPT,
+        DEFAULT_USER_PROMPT_TEMPLATE,
+        LEXICON_CONTENT,
+    )
+
+    # 1. System Prompt chứa quy chuẩn Outro CTA và phân định với solicitation
+    assert "ENGAGING PEER OUTRO & COMMUNITY CTA" in DEFAULT_SYSTEM_PROMPT
+    assert "SAFE PEER CTA & REDIRECTION" in DEFAULT_SYSTEM_PROMPT
+    assert "Final Scene (Outro & Community CTA)" in DEFAULT_SYSTEM_PROMPT
+    assert "safe peer redirection" in DEFAULT_SYSTEM_PROMPT.lower()
+    for cta_kw in ["share", "follow", "comment"]:
+        assert cta_kw in DEFAULT_SYSTEM_PROMPT.lower(), f"Thiếu keyword CTA '{cta_kw}' trong System Prompt"
+
+    # 2. Schema mô tả rõ ràng trách nhiệm của Scene cuối
+    srt_desc = DEFAULT_JSON_STRUCTURE["scenes"][0]["srt_script"]
+    assert "final scene integrates conversational peer cta" in srt_desc.lower()
+
+    # 3. User Prompt Template có lời nhắc CTA cho scene cuối và tuân thủ ngân sách độ dài
+    assert "Final scene: close with a natural, engaging peer Call to Action" in DEFAULT_USER_PROMPT_TEMPLATE
+    assert len(DEFAULT_USER_PROMPT_TEMPLATE) < 1500, f"User Prompt Template quá dài: {len(DEFAULT_USER_PROMPT_TEMPLATE)}"
+
+    # 4. Lexicon có Mục 5 đầy đủ 4 nhóm mẫu câu CTA bằng tiếng Anh và đại từ generic
+    assert "5. Peer Call to Action & Outro Patterns" in LEXICON_CONTENT
+    assert "Call for Comments & Discussion (Comment)" in LEXICON_CONTENT
+    assert "Call to Share (Share)" in LEXICON_CONTENT
+    assert "Call to Follow (Follow)" in LEXICON_CONTENT
+    assert "Natural Combo Outro" in LEXICON_CONTENT
+
+    # Kiểm tra các mẫu câu tiêu biểu trong Lexicon và đại từ generic
+    assert "bình luận bên dưới" in LEXICON_CONTENT.lower()
+    assert "bấm follow" in LEXICON_CONTENT.lower()
+    assert "chia sẻ ngay" in LEXICON_CONTENT.lower()
+    assert "{người_nghe}" in LEXICON_CONTENT
+    assert "{người_nói}" in LEXICON_CONTENT
+
+    # 5. Ngân sách System Prompt vẫn bảo đảm an toàn < 20000 ký tự
+    assert len(DEFAULT_SYSTEM_PROMPT) < 20000, f"System Prompt vượt ngân sách: {len(DEFAULT_SYSTEM_PROMPT)}"
+
+    print("-> PASS: test_peer_call_to_action_outro_rules_and_lexicon")
+
+
 if __name__ == "__main__":
     test_invalid_num_scripts()
     test_empty_content_raises_empty_content_error()
@@ -1108,6 +1153,7 @@ if __name__ == "__main__":
     test_interjection_diversity_and_anti_fixation_rules()
     test_prompt_size_budget()
     test_provider_dynamic_resolution_switch()
+    test_peer_call_to_action_outro_rules_and_lexicon()
     print("\n==================================================")
     print(" TOÀN BỘ UNIT TESTS CỦA PLAN CREATOR ĐÃ VƯỢT QUA! ")
     print("==================================================")

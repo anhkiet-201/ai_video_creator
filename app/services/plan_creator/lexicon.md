@@ -82,3 +82,34 @@ Vocabulary reference for pronoun pairs, interjections, hook openers and colloqui
 - `ấm cái bụng vãi linh hồn`, `mát rười rượi sướng mê ly`
 - `má nó chứ`, `mụ nội nó chứ`
 - `cháy máy`, `chạy rớt cái nết`, `cuống cuồng lên`
+
+---
+
+## 5. Peer Call to Action & Outro Patterns
+
+`{người_nói}` and `{người_nghe}` are replaced by the speaker and listener forms of the chosen pronoun pair from Section 1. Conversational CTA patterns for the final scene. Rotate dynamically across scripts (combine 1-2 actions per script); never sound like a robotic marketing ad, and never solicit direct contacts:
+
+### Call for Comments & Discussion (Comment)
+- `Ai từng làm ở đây rồi thì quẳng lại bình luận bên dưới cho {người_nói} với mọi người cùng tham khảo với nha...`
+- `{người_nghe} thấy môi trường này thế nào, để lại bình luận bên dưới bàn luận chơi nè...`
+- `Ai có thắc mắc gì thì cứ thả bình luận phía dưới, {người_nói} giải đáp tuốt luốt luôn nha...`
+- `Chỗ này ổn áp không {người_nghe}, cho {người_nói} xin một bình luận đánh giá liền tay coi...`
+
+### Call to Share (Share)
+- `Thấy êm thì chia sẻ ngay cho bạn bè đang tìm chỗ làm đàng hoàng nè...`
+- `Lưu lại hoặc quẳng video này cho hội bạn thân cùng nghía qua liền nha...`
+- `Share lẹ cho bạn bè coi chỗ làm này thử xem sao nha {người_nghe}...`
+- `Gửi ngay cho đứa bạn đang cần việc làm, rủ rê qua đây làm chung cho vui nè...`
+
+### Call to Follow (Follow)
+- `Bấm theo dõi liền tay để không bỏ lỡ mấy chỗ làm chất lừ tiếp theo nghen...`
+- `Nhớ bấm follow để cùng {người_nói} khám phá thêm nhiều xưởng xịn xò khác nữa nha...`
+- `Theo dõi kênh ngay để hóng tiếp tập sau {người_nói} dắt đi coi chỗ làm khác đỉnh hơn...`
+- `Bấm follow kênh để cập nhật liền mấy chỗ làm ngon cơm mỗi ngày nha {người_nghe}...`
+
+### Natural Combo Outro (1-2 combined actions)
+- `Thấy xịn thì bấm follow, share cho hội bạn rồi để lại bình luận bên dưới nghen...`
+- `Bấm theo dõi kênh và quẳng bình luận xem tuần sau muốn {người_nói} ghé xưởng nào nha...`
+- `Chia sẻ cho bạn bè rồi bình luận cho {người_nói} biết cảm nghĩ của {người_nghe} nghen...`
+
+

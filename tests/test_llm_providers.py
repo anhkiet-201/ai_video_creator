@@ -107,6 +107,38 @@ def test_base_clean_and_parse_json_invalid():
     print("-> PASS: test_base_clean_and_parse_json_invalid")
 
 
+def test_base_clean_and_parse_json_robust_syntax_defects():
+    """Kiểm tra khả năng phục hồi lỗi cú pháp LLM (nháy đơn, unquoted, python comment, trailing comma)."""
+    provider = DummyLLMProvider()
+    raw = """
+    {
+        'script_id': 1,
+        title: “Review Xưởng Sản Xuất”,
+        # Đây là comment dạng python của AI
+        'selected_pronoun_pair': 'tui — tụi bây',
+        "scenes": [
+            {
+                'scene_index': 1,
+                title: 'CÔNG TY CHERVON',
+                'sub_title': 'Đường số 6',
+                'srt_script': 'Lời thoại dùng nháy đơn',
+                transition: 'fade',
+            },
+        ],
+    }
+    """
+    result = provider.clean_and_parse_json(raw)
+    assert result["script_id"] == 1
+    assert result["title"] == "Review Xưởng Sản Xuất"
+    assert result["selected_pronoun_pair"] == "tui — tụi bây"
+    assert len(result["scenes"]) == 1
+    assert result["scenes"][0]["scene_index"] == 1
+    assert result["scenes"][0]["title"] == "CÔNG TY CHERVON"
+    assert result["scenes"][0]["srt_script"] == "Lời thoại dùng nháy đơn"
+    assert result["scenes"][0]["transition"] == "fade"
+    print("-> PASS: test_base_clean_and_parse_json_robust_syntax_defects")
+
+
 # -------------------------------------------------------------------------
 # 2. TEST GEMINI LLM PROVIDER
 # -------------------------------------------------------------------------
@@ -315,6 +347,7 @@ def run_all_tests():
     test_base_clean_and_parse_json_markdown_fence()
     test_base_clean_and_parse_json_surrounding_text()
     test_base_clean_and_parse_json_comments_and_trailing_commas()
+    test_base_clean_and_parse_json_robust_syntax_defects()
     test_base_clean_and_parse_json_invalid()
     test_gemini_provider_success()
     test_gemini_provider_key_rotation_and_exhaustion()
