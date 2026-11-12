@@ -1,115 +1,54 @@
-# LIVING VIRAL LEXICON
+# LIVING VIRAL LEXICON (TIKTOK WORKPLACE REVIEW TRIỆU VIEW)
 
-Vocabulary reference for pronoun pairs, interjections, hook openers and colloquial slang. Contributors can enrich this list at any time. All usage rules live in the System Prompt (prompts.py); this file holds data only.
+Kho ngữ liệu thực chiến: Xưng hô tự nhiên, 5 Format Hook triệu view, câu nói đời thường ngắn gọn và từ lóng TikTok. Tuyệt đối cấm văn phong thời sự/phóng sự/báo chí!
 
----
+## 1. Cặp Đại Từ Xưng Hô (Pronoun Pairs - Giữ nhất quán 1 cặp suốt bài)
+- Đồng nghiệp hóm hỉnh: `tui` — `mấy bà` (`mấy bà ơi`), `tui` — `mấy bồ` (`mấy bồ ơi`), `tui` — `anh em` (`anh em ơi`), `tui` — `tụi bây` (`tụi bây ơi`), `tui` — `mấy ông` (`mấy ông ơi`)
+- Trẻ trung, đời thường: `mình` — `cả nhà` (`cả nhà ơi`), `em` — `cả nhà` (`cả nhà mình ơi`), `tui` — `các mom` (`các mom ơi`), `tui` — `bà con` (`bà con ơi`)
 
-## 1. Pronoun Pairs (speaker — listener / vocative form)
+## 2. Thán Từ Cảm Xúc Bắt Trend (Tối đa 1-2 lần ở cao trào, cấm lặp)
+- **Shock & Awe**: `Nhìn cái xưởng mà bất ngờ thiệt sự luôn á!` / `Nói thiệt chứ nhìn dàn máy mà mê chữ ê kéo dài luôn á!`
+- **Confusion & Disbelief**: `Ủa alo, có nhìn nhầm không trời?!` / `Ủa thiệt hả trời, máy nó gánh hết trơn rồi!`
+- **Startle & Close Call**: `Hú hồn chưa, tưởng khó ai ngờ dễ ợt!` / `Hú vía thiệt chớ, quen tay cái là êm ru!`
+- **Pace Rush**: `Nhịp tay thoăn thoắt nhìn cuốn ghê chưa!` / `Bật mood làm việc liền chứ còn chờ gì nữa!`
+- **Delight & Relief**: `Nhìn thôi đã thấy cái bụng ưng dữ thần rồi nha!` / `Mê xỉu ngang với không gian sạch sẽ này luôn á!`
 
-### Peer & Colleague (friendly, street-smart)
-- `tui` — `tụi bây` / `tụi bây ơi`
-- `tui` — `các bây` / `các bây ơi`
-- `tui` — `mấy đứa` / `mấy đứa ơi`
-- `tui` — `anh em` / `anh em mình ơi`
-- `tui` — `mấy bồ` / `mấy bồ tèo ơi`
+## 3. 5 Format Hook Viral TikTok Triệu View (Scene 1 — Giật Tò Mò Trong 3 Giây Đầu)
+- **Format 1: Tâm lý ngược (Reverse Psychology — Cảnh báo hài hước)**:
+  - `Đừng dại xin vô xưởng này nếu mấy bà sợ bị công ty... nuôi mập nha! Trưa đến là cơm nóng canh ngọt bao no tận răng, khỏi tốn một cắc!`
+  - `Cảnh báo cho mấy ông lười: Vô xưởng này là không có cửa than mệt đâu, máy móc nó gánh còng lưng hết rồi!`
+- **Format 2: Bóc trần / Kiểm chứng tin đồn (Debunking Rumors)**:
+  - `Bữa giờ ai đồn làm linh kiện motor cực như trâu đâu, bước ra đây coi tui bóc trần sự thật nè! Đứng nhìn máy làm muốn ngủ gật luôn á!`
+- **Format 3: POV / Trải nghiệm kịch tính (Curiosity Gap)**:
+  - `POV: Đi xin việc cơ khí mà ngỡ đâu đi lạc vô phòng gym công nghệ! Máy tự động gá phôi lẹ làng, tay chân sạch bóng không dính dầu mỡ!`
+- **Format 4: Quy định lạ đời / Luật ngầm của xưởng (Curiosity / Intrigue)**:
+  - `Xưởng này có quả luật ngầm lạ tai: Không xỏ giày tử tế là miễn bước vô cửa! Tưởng làm khó ai dè ngẫm kỹ mới thấy công ty bảo vệ chân mình dữ dội!`
+- **Format 5: Review thật không phông bạt (Insider Chân Thật)**:
+  - `Nói thiệt một câu cho mấy bồ đỡ mất công hỏi: Xưởng này việc nhàn, cơm ngon, mát rượi, mỗi tội phải đứng quen chân thôi, chịu được thì bay vô!`
 
-### Sisterhood & Mom Community (heartfelt, sassy)
-- `tui` — `các mom` / `các mom ơi`
-- `tui` — `mấy bà` / `mấy bà ơi`
-- `chụy` — `mấy cưng` / `mấy cưng ơi`
-- `tui` — `các người đẹp` / `hội chị em ơi`
-
-### Warm Everyday Community (approachable, respectful)
-- `tui` — `quý dị` / `quý dị ơi`
-- `tui` — `bà con` / `bà con cô bác ơi`
-- `em` — `cả nhà` / `cả nhà mình ơi`
-- `em` — `các bác` / `các bác ơi`
-- `mình` — `cả nhà` / `các bạn ơi`
-
----
-
-## 2. Interjections by Emotion
-
-### Group 1 — Shock & Awe
-- `Đứng hình 5 giây luôn!` / `Chèn đét ơi!`
-- `Chèn ơi là chèn!` / `Không thể tin nổi luôn!`
-- `Bật ngửa luôn á!` / `Muốn rớt cái hàm luôn!`
-- `Trời cao đất dày ơi!` / `Trời đất quỷ thần ơi!`
-
-### Group 2 — Confusion & Disbelief
-- `Ủa alo gì dợ trời?!` / `Ủa alo có nghe lầm không zậy?!`
-- `Gì dợ má?!` / `Ủa cái gì zạ trời?!`
-- `Ủa alo bình tĩnh bà con ơi!` / `Có lộn không dợ?!`
-- `Xỉu ngang xỉu dọc luôn á!`
-
-### Group 3 — Startle & Close Call
-- `Hú hồn chim én!` / `Hú vía bà con ơi!`
-- `Hết hồn chưa bà con ơi!` / `Hú vía thiệt chớ!`
-- `Thót tim bay màu luôn á!` / `Má ôi con lạy!`
-
-### Group 4 — Pace Rush (playful)
-- `Á á cứu tui với!` / `Úi giời ôi cứu tui với!`
-- `Cứu cái nết tui với!` / `Cứu em phen này cả nhà ơi!`
-- `Chạy rớt cái nết luôn á!`
-
-### Group 5 — Delight & Relief
-- `Đã cái nư gì đâu á!` / `Sướng cái thân gì đâu á!`
-- `Mê xỉu ngang xỉu dọc luôn!` / `Phê tới bến luôn á!`
-- `Ấm cái bụng liền á!` / `Mát rười rượi sướng mê ly!`
-
----
-
-## 3. Hook Openers
-
-`{người_nghe}` is replaced by the listener form of the chosen pronoun pair (e.g. `mấy đứa`, `tụi bây`, `anh em mình`, `cả nhà`, `mấy bà`). Combine an opener with a concrete detail from the source.
-
-- `Ụ má {người_nghe} ơi...` / `Ụ má tin nổi hông {người_nghe}...`
-- `Chời mẹ ơi {người_nghe} kéo vô đây coi lẹ nè...` / `Má nó chứ {người_nghe} coi cái này nè...`
-- `Ủa alo mẹ ơi {người_nghe} ơi...` / `Dô đây coi lẹ {người_nghe} ơi...`
-- `Trời thần mẹ ơi {người_nghe} ơi...` / `Trời đất mẹ ơi {người_nghe}...`
-- `Má nó chứ {người_nghe} ngó thử cái cảnh này coi...` / `Kéo vô đây ngó cái chuyền này lẹ nè {người_nghe} ơi...`
-- `Nín thở 3 giây coi cái cảnh này nè {người_nghe} ơi...` / `Đứng hình 5 giây coi cái này nè {người_nghe} ơi...`
-- `Ủa alo {người_nghe} ơi có nghe lầm hông zậy...` / `Trời cao đất dày ơi {người_nghe} ngó giùm cái nè...`
-
----
-
-## 4. Positive Hype Slang & Casual Expletives
-
-- `vãi`, `vãi chưởng`, `vãi nồi`, `vãi chấy`, `vãi linh hồn`, `vãi đạn`
-- `cuốn vãi chưởng`, `cuốn vãi nồi`, `cuốn đét đèn đẹt`, `làm cuốn vãi`
-- `sướng vãi nồi`, `phê lòi mắt`, `đã cái nư vãi chấy`
-- `chạy mượt đét`, `làm vèo vèo`, `chiến tới bến`, `đỉnh chóp vãi`
-- `ấm cái bụng vãi linh hồn`, `mát rười rượi sướng mê ly`
-- `má nó chứ`, `mụ nội nó chứ`
-- `cháy máy`, `chạy rớt cái nết`, `cuống cuồng lên`
-
----
+## 4. Ngữ Khí Công Xưởng Đời Thường (Câu Ngắn 6-12 Từ — CẤM Văn Phong Báo Chí / HR)
+- `xưởng mát rượi như bật quạt gió cả ngày, sạch bóng kin kít`
+- `máy gá tự động hết trơn, tay mình chỉ việc lấy ra nhẹ tênh`
+- `trưa đói bụng chỉ việc vác bụng đi ăn, cơm nóng sốt dẻo bao no`
+- `làm ca đêm có tiền cơm trao tay, tha hồ bún bò hủ tiếu`
+- `ca 12 tiếng nghe ngán chứ hai tuần mới xoay một bận, quen nhịp là chạy mượt re`
+- `quen tay đôi ba bữa là làm êm ru, đâu ra đó gọn gàng`
+- `đồng nghiệp chỉ dẫn nhiệt tình, vô vài ngày là quen việc cái một`
+- `đứng quen chân là thấy khỏe re, không hề bị hầm hập khó chịu`
 
 ## 5. Peer Call to Action & Outro Patterns
-
-`{người_nói}` and `{người_nghe}` are replaced by the speaker and listener forms of the chosen pronoun pair from Section 1. Conversational CTA patterns for the final scene. Rotate dynamically across scripts (combine 1-2 actions per script); never sound like a robotic marketing ad, and never solicit direct contacts:
-
 ### Call for Comments & Discussion (Comment)
-- `Ai từng làm ở đây rồi thì quẳng lại bình luận bên dưới cho {người_nói} với mọi người cùng tham khảo với nha...`
-- `{người_nghe} thấy môi trường này thế nào, để lại bình luận bên dưới bàn luận chơi nè...`
-- `Ai có thắc mắc gì thì cứ thả bình luận phía dưới, {người_nói} giải đáp tuốt luốt luôn nha...`
-- `Chỗ này ổn áp không {người_nghe}, cho {người_nói} xin một bình luận đánh giá liền tay coi...`
+- `{người_nghe} thấy nhịp làm việc ở xưởng này thế nào, thả ngay bình luận bên dưới chia sẻ với {người_nói} nghen...`
+- `Ai từng đứng khâu máy hay máng sơn này rồi thì để lại bình luận bên dưới cho {người_nói} với anh em cùng biết coi sướng hay cực nha!`
 
 ### Call to Share (Share)
-- `Thấy êm thì chia sẻ ngay cho bạn bè đang tìm chỗ làm đàng hoàng nè...`
-- `Lưu lại hoặc quẳng video này cho hội bạn thân cùng nghía qua liền nha...`
-- `Share lẹ cho bạn bè coi chỗ làm này thử xem sao nha {người_nghe}...`
-- `Gửi ngay cho đứa bạn đang cần việc làm, rủ rê qua đây làm chung cho vui nè...`
+- `Thấy góc review này thực tế thì chia sẻ ngay cho bạn bè cùng xem nghen {người_nghe}...`
 
 ### Call to Follow (Follow)
-- `Bấm theo dõi liền tay để không bỏ lỡ mấy chỗ làm chất lừ tiếp theo nghen...`
-- `Nhớ bấm follow để cùng {người_nói} khám phá thêm nhiều xưởng xịn xò khác nữa nha...`
-- `Theo dõi kênh ngay để hóng tiếp tập sau {người_nói} dắt đi coi chỗ làm khác đỉnh hơn...`
-- `Bấm follow kênh để cập nhật liền mấy chỗ làm ngon cơm mỗi ngày nha {người_nghe}...`
+- `Nhớ bấm follow kênh để cùng {người_nói} khám phá thêm nhiều xưởng xịn sò tiếp theo nha...`
 
-### Natural Combo Outro (1-2 combined actions)
-- `Thấy xịn thì bấm follow, share cho hội bạn rồi để lại bình luận bên dưới nghen...`
-- `Bấm theo dõi kênh và quẳng bình luận xem tuần sau muốn {người_nói} ghé xưởng nào nha...`
-- `Chia sẻ cho bạn bè rồi bình luận cho {người_nói} biết cảm nghĩ của {người_nghe} nghen...`
+### Natural Combo Outro
+- `Thấy ưng ý thì bấm follow kênh, chia sẻ ngay và để lại bình luận bên dưới cho {người_nói} biết cảm nhận của {người_nghe} nha...`
 
-
+## 6. Cụm Từ Bị CẤM Tuyệt Đối:
+- CẤM: `"Được cái công ty lo..."`, `"chế độ ăn uống và ca kíp"`, `"vào guồng gọn gàng"`, `"phân chia xoay tuần hợp lý"`, `"tiện lợi vô cùng luôn"`, `"Trải nghiệm thực tế xưởng..."`.

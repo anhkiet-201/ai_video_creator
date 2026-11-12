@@ -226,8 +226,10 @@ class VideoCreationPipeline:
             raise StepValidationError(f"Lỗi Bước 1: Thư mục 'video_source_path' không tồn tại: {source_dir}")
 
         media_files = [
-            f for f in source_dir.iterdir()
-            if f.is_file() and f.suffix.lower() in SUPPORTED_MEDIA_EXTS
+            f for f in source_dir.rglob("*")
+            if f.is_file()
+            and f.suffix.lower() in SUPPORTED_MEDIA_EXTS
+            and not any(p.startswith(".") for p in f.relative_to(source_dir).parts)
         ]
         if not media_files:
             raise StepValidationError(
@@ -310,10 +312,18 @@ class VideoCreationPipeline:
                 scripts_list = raw_result
 
             rough_scripts: List[RoughScript] = []
+            seen_ids = set()
             for idx, item in enumerate(scripts_list):
                 if not isinstance(item, dict):
                     continue
-                script_id = str(item.get("script_id", f"script_{idx + 1}"))
+                raw_sid = item.get("script_id")
+                # Đảm bảo script_id luôn là chuỗi duy nhất, không bao giờ bị trùng đè giữa các kịch bản
+                candidate_id = str(raw_sid) if (raw_sid is not None and str(raw_sid).isdigit()) else str(idx + 1)
+                if candidate_id in seen_ids or candidate_id == "0":
+                    candidate_id = str(idx + 1)
+                seen_ids.add(candidate_id)
+                script_id = candidate_id
+
                 title = str(item.get("title", f"Video Kịch Bản #{idx + 1}"))
                 overlay_style = str(item.get("overlay_style", "bubble_cloud"))
 
@@ -842,6 +852,11 @@ class VideoCreationPipeline:
             extra_params={"scene_pause_duration": scene_pause_duration},
         )
         self.video_render_engine.config = render_config
+
+        # Khởi tạo lại session tracking trong video_render_engine để tối đa hóa độ phủ B-roll toàn batch
+        if hasattr(self.video_render_engine, "reset_session"):
+            self.video_render_engine.reset_session()
+            logger.info("[Bước 5] Đã reset session b-roll segment allocator cho batch render mới.")
 
         results: List[RenderResult] = []
         total_plans = len(detailed_plans)

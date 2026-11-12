@@ -52,6 +52,10 @@ class PlanCreatorConfig(BaseModel):
         default=None,
         description="Cấu trúc JSON đầu ra cho 1 plan đơn lẻ. Nếu để None sẽ dùng DEFAULT_JSON_STRUCTURE."
     )
+    realtime_trends: Optional[str] = Field(
+        default=None,
+        description="Thông tin xu hướng thời gian thực. Nếu để None sẽ tự động lấy qua SocialTrendingService."
+    )
 
     @field_validator("api_keys", mode="before")
     @classmethod

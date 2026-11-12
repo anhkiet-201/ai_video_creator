@@ -74,15 +74,29 @@ class BaseLLMProvider(ABC):
             parsed = json.loads(text)
         except json.JSONDecodeError:
             # 5. Chuẩn hóa các khiếm khuyết cú pháp phổ biến sang chuẩn JSON RFC 8259:
-            # a) Khóa dùng nháy đơn: 'key': -> "key":
-            cleaned_text = re.sub(r"([{,]\s*)'([a-zA-Z_][a-zA-Z0-9_]*)'\s*:", r'\1"\2":', text)
-            # b) Khóa không dùng nháy: key: -> "key":
-            cleaned_text = re.sub(r"([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:", r'\1"\2":', cleaned_text)
+            # a) Bổ sung dấu phẩy bị thiếu khi xuống dòng giữa 2 thuộc tính liên tiếp
+            cleaned_text = re.sub(
+                r'(["\d\]\}]|true|false|null)\s*\n(\s*[\'"]?[a-zA-Z_][a-zA-Z0-9_]*[\'"]?\s*:)',
+                r"\1,\n\2",
+                text,
+            )
+            # b) Chuẩn hóa mọi khóa bị thiếu nháy mở/đóng (vd: sub_title":, "sub_title:, 'key':, key:) -> "key":
+            cleaned_text = re.sub(
+                r'([{,]\s*)[\'"]?([a-zA-Z_][a-zA-Z0-9_]*)[\'"]?\s*:',
+                r'\1"\2":',
+                cleaned_text,
+            )
             # c) Giá trị chuỗi dùng nháy đơn: : 'value' -> : "value"
             cleaned_text = re.sub(r":\s*'([^'\n\r]*)'", r': "\1"', cleaned_text)
-            # d) Dấu phẩy thừa trước ngoặc đóng: , } hoặc , ]
+            # d) Giá trị chuỗi bị khuyết nháy kép mở đầu: : value", -> : "value",
+            cleaned_text = re.sub(
+                r':\s*(?!(?:true|false|null)\b)([^"\'\d\{\[\-\s][^"\n\r]*)"(\s*[,}\]])',
+                r': "\1"\2',
+                cleaned_text,
+            )
+            # e) Dấu phẩy thừa trước ngoặc đóng: , } hoặc , ]
             cleaned_text = re.sub(r",\s*([\]\}])", r"\1", cleaned_text)
-            # e) Dấu phẩy lặp: ,, -> ,
+            # f) Dấu phẩy lặp: ,, -> ,
             cleaned_text = re.sub(r",\s*,", ",", cleaned_text)
 
             try:

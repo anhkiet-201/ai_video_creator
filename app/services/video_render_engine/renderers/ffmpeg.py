@@ -83,6 +83,11 @@ class FFmpegBaseRenderer(BaseVideoRenderer):
     def renderer_name(self) -> str:
         return self.__class__.__name__
 
+    def reset_session(self) -> None:
+        """Reset session state trong segment allocator để bắt đầu phiên mới."""
+        if hasattr(self, "segment_allocator") and hasattr(self.segment_allocator, "reset_session"):
+            self.segment_allocator.reset_session()
+
     def _run_cmd(self, cmd: List[str], **kwargs: Any) -> subprocess.CompletedProcess:
         """Execute subprocess with platform-specific flags (e.g. CREATE_NO_WINDOW on Windows)."""
         merged_kwargs = {**_get_subprocess_extra_kwargs(), **kwargs}
@@ -130,8 +135,10 @@ class FFmpegBaseRenderer(BaseVideoRenderer):
             raise SourceFolderNotFoundError(f"Thư mục nguồn không tồn tại: {source_folder}")
 
         video_files = [
-            f for f in source_folder.iterdir()
-            if f.is_file() and f.suffix.lower() in SUPPORTED_VIDEO_EXTENSIONS and not f.name.startswith(".")
+            f for f in source_folder.rglob("*")
+            if f.is_file()
+            and f.suffix.lower() in SUPPORTED_VIDEO_EXTENSIONS
+            and not any(p.startswith(".") for p in f.relative_to(source_folder).parts)
         ]
         return video_files
 
@@ -252,10 +259,13 @@ class FFmpegBaseRenderer(BaseVideoRenderer):
             for idx, dur in enumerate(scene_durations)
         ]
 
+        plan_idx = getattr(plan, "video_index", None) or cfg.extra_params.get("video_index")
         segment_plans = self.segment_allocator.allocate(
             scene_durations=allocated_durations,
             source_videos_info=source_videos_info,
             seed=allocator_seed,
+            plan_index=plan_idx,
+            session_aware=True,
         )
 
         # 4. Thực thi cắt từng segment bằng FFmpeg

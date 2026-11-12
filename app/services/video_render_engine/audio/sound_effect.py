@@ -81,31 +81,11 @@ def format_sound_effects_for_prompt(
         return ""
 
     lines = [
-        "AVAILABLE SOUND EFFECTS (SFX) FOR SCENE HIGHLIGHTS:",
-        "Available sound files strictly follow the naming pattern '<Sound Name> - <Usage Description>.<ext>' (.wav, .mp3):",
-        "- '<Sound Name>': The auditory sound category/identifier (e.g., Ting, Boom, Whoosh, Chime).",
-        "- '<Usage Description>': Explains the designated scene purpose, dramatic mood, or highlight context.",
-        "List of available audio files:"
+        "AVAILABLE SOUND EFFECTS (optional, max 1 per script at the very end of 'srt_script'):",
     ]
 
     for ef in effects:
-        # ef.name có dạng: <Tên sound> - <Cách sử dụng>.<ext>
-        stem = ef.stem
-        if " - " in stem:
-            parts = stem.split(" - ", 1)
-            sound_name = parts[0].strip()
-            usage = parts[1].strip()
-            lines.append(f"- '{ef.name}' (Sound: '{sound_name}' | Usage: {usage}) -> Tag: [sound-effect:{ef.name}]")
-        else:
-            lines.append(f"- '{ef.name}' -> Tag: [sound-effect:{ef.name}]")
-
-    lines.append(
-        "\nSOUND EFFECT TAG USAGE RULES:\n"
-        "1. Contextual & Non-Formulaic Selection: Inspect the '<Usage Description>' of each file. Choose an effect that authentically matches the scene's specific narrative moment (e.g., sharing a clever tip, a dramatic turning point, confirming honest facts, or a warm closing). STRICTLY FORBIDDEN to lazily default to the same sound across scripts.\n"
-        "2. Optional & Dynamic Placement: Sound effects are optional highlights, NOT a mechanical requirement. When used, place the effect where the real dramatic climax occurs (Scene 1, a middle turning point, or the closing outro). Do not mechanically place it in the same scene across all scripts.\n"
-        "3. Strict Frequency Limit: Maximum 1 sound effect per script. Most scenes must have NO sound effect to maintain natural human storytelling pacing.\n"
-        "4. Strict Placement: When used, the tag [sound-effect:<exact filename>] must always be placed at the very end of the scene's 'srt_script'."
-    )
+        lines.append(f"- [sound-effect:{ef.name}]")
 
     return "\n".join(lines)
 

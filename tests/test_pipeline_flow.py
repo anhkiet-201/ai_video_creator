@@ -83,6 +83,42 @@ class TestVideoCreationPipeline(unittest.TestCase):
         self.assertEqual(res["media_files_count"], 2)
         self.assertEqual(res["api_keys"], ["AIzaSyFakeKey123"])
 
+    def test_step_1_validate_inputs_nested_subfolders(self):
+        """Thẩm định thành công khi các file media nằm sâu trong các thư mục con (subfolders)."""
+        nested_root = self.root_temp / "nested_media_root"
+        nested_root.mkdir(parents=True, exist_ok=True)
+        (nested_root / ".DS_Store").write_text("system junk", encoding="utf-8")
+
+        sub1 = nested_root / "2026-05-19"
+        sub1.mkdir(parents=True, exist_ok=True)
+        (sub1 / "video1.mp4").write_bytes(b"\x00" * 100)
+
+        sub2 = nested_root / "Group A" / "camera_roll"
+        sub2.mkdir(parents=True, exist_ok=True)
+        (sub2 / "video2.mov").write_bytes(b"\x00" * 100)
+        (sub2 / "photo.png").write_bytes(b"\x00" * 100)
+
+        hidden_sub = nested_root / ".hidden_folder"
+        hidden_sub.mkdir(parents=True, exist_ok=True)
+        (hidden_sub / "ignore_me.mp4").write_bytes(b"\x00" * 100)
+
+        inp = PipelineInput(
+            content=self.sample_content,
+            video_source_path=nested_root,
+            num_videos=1,
+            api_keys=["AIzaSyFakeKey123"],
+            output_dir=self.mock_output_dir,
+        )
+
+        res = self.pipeline.step_1_validate_inputs(inp)
+        self.assertEqual(res["media_files_count"], 3)  # 2 videos + 1 photo, hidden file ignored
+
+        # Kiểm tra _scan_source_videos của ffmpeg renderer
+        from app.services.video_render_engine.renderers.ffmpeg import FFmpegBaseRenderer
+        renderer = FFmpegBaseRenderer()
+        scanned_videos = renderer._scan_source_videos(nested_root)
+        self.assertEqual(len(scanned_videos), 2)  # 2 videos only (video1.mp4 and video2.mov)
+
     def test_step_1_validate_inputs_missing_keys(self):
         """Báo lỗi khi không có API key nào trong input lẫn env."""
         inp = PipelineInput(

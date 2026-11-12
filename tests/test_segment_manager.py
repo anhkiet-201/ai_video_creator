@@ -159,6 +159,80 @@ class TestVideoSegmentAllocator(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.allocator.allocate([3.0, 4.0], {})
 
+    def test_11_cross_plan_diversity_and_coverage(self):
+        """Batch 5 kịch bản phải tối đa hóa độ phủ video nguồn và không lặp nội bộ."""
+        # 20 video nguồn, mỗi video 15.0s
+        video_sources = {
+            Path(f"clip_{i:02d}.mp4"): 15.0
+            for i in range(1, 21)
+        }
+        allocator = VideoSegmentAllocator()
+        allocator.reset_session()
+
+        # 5 kịch bản, mỗi kịch bản 4 cảnh (tổng 20 cảnh)
+        scene_durs = [3.0, 3.5, 4.0, 3.2]
+        all_chosen_videos = []
+
+        for plan_idx in range(1, 6):
+            cut_plans = allocator.allocate(
+                scene_durations=scene_durs,
+                source_videos_info=video_sources,
+                seed=42,
+                plan_index=plan_idx,
+            )
+            # Ràng buộc 1: Mỗi kịch bản có 4 cảnh phải dùng 4 video khác nhau 100%
+            plan_vids = [p.video_path for p in cut_plans]
+            self.assertEqual(
+                len(plan_vids),
+                len(set(plan_vids)),
+                f"Plan {plan_idx} bị trùng lặp video trong cùng một kịch bản!",
+            )
+            all_chosen_videos.extend(plan_vids)
+
+        # Ràng buộc 2: 20 cảnh trên 5 kịch bản phải phủ trọn vẹn 20 video nguồn (100% coverage)
+        unique_used_videos = set(all_chosen_videos)
+        self.assertEqual(
+            len(unique_used_videos),
+            20,
+            f"Độ phủ chưa đạt 100%! Chỉ dùng {len(unique_used_videos)}/20 video nguồn.",
+        )
+
+    def test_12_dynamic_sector_jumping_non_linear(self):
+        """Dynamic Sector Jumping phải phân bố điểm cắt ở nhiều vùng thời gian, không dồn về 0.0s."""
+        video_dur = 60.0
+        target_dur = 5.0
+        start_times = []
+
+        for seed in range(20):
+            allocator = VideoSegmentAllocator(seed=seed)
+            st, loop_needed, _ = allocator.pick_start_time(
+                video_duration=video_dur,
+                target_duration=target_dur,
+                used_intervals=[],
+            )
+            self.assertFalse(loop_needed)
+            start_times.append(st)
+
+        # Đảm bảo có các nhát cắt ở cả nửa đầu và nửa sau của video
+        early_cuts = [s for s in start_times if s < 25.0]
+        late_cuts = [s for s in start_times if s >= 25.0]
+
+        self.assertTrue(len(early_cuts) > 0, "Không có nhát cắt nào ở phân khu đầu!")
+        self.assertTrue(len(late_cuts) > 0, "Không có nhát cắt nào ở phân khu sau!")
+        # Không bị tất cả dồn vào sát 0.0s
+        self.assertTrue(any(s > 10.0 for s in start_times), "Điểm cắt bị dồn về sát 0s!")
+
+    def test_13_session_reset_clears_history(self):
+        """reset_session() phải xóa sạch lịch sử phân bổ session."""
+        video_sources = {Path("clip_1.mp4"): 20.0, Path("clip_2.mp4"): 20.0}
+        allocator = VideoSegmentAllocator()
+        allocator.allocate([5.0], video_sources, plan_index=1)
+        self.assertGreater(len(allocator.session_usage_counts), 0)
+
+        allocator.reset_session()
+        self.assertEqual(len(allocator.session_usage_counts), 0)
+        self.assertEqual(len(allocator.session_used_intervals), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

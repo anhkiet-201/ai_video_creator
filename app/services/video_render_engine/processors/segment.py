@@ -43,6 +43,13 @@ class VideoSegmentAllocator:
     def __init__(self, seed: Optional[int] = None) -> None:
         """Khởi tạo allocator với seed ngẫu nhiên tùy chọn."""
         self.seed = seed
+        self.session_usage_counts: Dict[Path, int] = defaultdict(int)
+        self.session_used_intervals: Dict[Path, List[Tuple[float, float]]] = defaultdict(list)
+
+    def reset_session(self) -> None:
+        """Xóa sạch bộ nhớ phiên cũ để sẵn sàng cho phiên render batch mới."""
+        self.session_usage_counts.clear()
+        self.session_used_intervals.clear()
 
     @staticmethod
     def merge_intervals(intervals: Sequence[Tuple[float, float]]) -> List[Tuple[float, float]]:
@@ -144,7 +151,19 @@ class VideoSegmentAllocator:
             chosen_start, chosen_end = random_gen.choice(valid_free_intervals)
             max_start = chosen_end - target_duration
             if max_start > chosen_start:
-                start_time = random_gen.uniform(chosen_start, max_start)
+                span = max_start - chosen_start
+                # Dynamic Sector Jumping: Chia khoảng thời gian thành các phân khu (Early, Mid, Late)
+                # để nhảy pha phi tuyến tính, tránh việc cắt dồn ở đầu clip (0.0s) khi clip đủ dài.
+                if span >= 2.0:
+                    sectors = [
+                        (chosen_start + span * 0.08, chosen_start + span * 0.38),
+                        (chosen_start + span * 0.38, chosen_start + span * 0.70),
+                        (chosen_start + span * 0.70, chosen_start + span * 0.96),
+                    ]
+                    sec_start, sec_end = random_gen.choice(sectors)
+                    start_time = random_gen.uniform(sec_start, sec_end)
+                else:
+                    start_time = random_gen.uniform(chosen_start, max_start)
             else:
                 start_time = chosen_start
             return round(start_time, 3), False, 0.0
@@ -192,13 +211,25 @@ class VideoSegmentAllocator:
         scene_durations: Sequence[float],
         source_videos_info: Dict[Path, float],
         seed: Optional[int] = None,
+        plan_index: Optional[int] = None,
+        session_aware: Optional[bool] = None,
     ) -> List[SegmentCutPlan]:
         """Phân bổ tối ưu toàn bộ các cảnh vào kho video nguồn.
+
+        Hỗ trợ phân bổ phi tuyến tính (Non-linear Shuffled Allocation) và
+        luân chuyển tư liệu toàn phiên (Cross-Plan Session Tracking):
+        1. Xáo trộn ngẫu nhiên toàn bộ ứng viên bằng Fisher-Yates shuffle.
+        2. Chống lặp nội bộ: Không trùng video trong cùng một plan khi kho footage đủ lớn.
+        3. Phủ tối đa: Khai thác hết toàn bộ video trong session trước khi tái sử dụng.
+        4. Cắt nhảy pha: Dynamic Sector Jumping tránh cắt tuyến tính từ đầu file.
 
         Args:
             scene_durations: Danh sách thời lượng (giây) của từng scene theo thứ tự kịch bản.
             source_videos_info: Dict ánh xạ Path video nguồn -> duration (giây).
             seed: Seed ngẫu nhiên tùy chọn để tái lập kết quả.
+            plan_index: Chỉ số kịch bản trong batch (1, 2, 3...) giúp sinh seed phi tuyến tính.
+            session_aware: Nếu True, lưu vết và ưu tiên video chưa dùng trong toàn session.
+                           Mặc định tự động bật khi plan_index được cung cấp.
 
         Returns:
             Danh sách SegmentCutPlan cho từng scene.
@@ -208,11 +239,24 @@ class VideoSegmentAllocator:
         if not scene_durations:
             return []
 
-        rng = random.Random(seed if seed is not None else self.seed)
-        all_videos = list(source_videos_info.keys())
+        is_session_aware = session_aware if session_aware is not None else (plan_index is not None)
 
-        used_intervals: Dict[Path, List[Tuple[float, float]]] = defaultdict(list)
-        usage_counts: Dict[Path, int] = {p: 0 for p in all_videos}
+        # Khởi tạo bộ sinh số ngẫu nhiên với entropy phi tuyến tính
+        if seed is not None:
+            effective_seed = seed + (plan_index * 10007 if plan_index is not None else 0)
+            rng = random.Random(effective_seed)
+        elif self.seed is not None:
+            effective_seed = self.seed + (plan_index * 10007 if plan_index is not None else 0)
+            rng = random.Random(effective_seed)
+        else:
+            rng = random.Random()
+
+        # Xáo trộn sâu danh sách video nguồn bằng Fisher-Yates để triệt tiêu thứ tự hệ thống tập tin
+        all_videos = list(source_videos_info.keys())
+        rng.shuffle(all_videos)
+
+        plan_used_intervals: Dict[Path, List[Tuple[float, float]]] = defaultdict(list)
+        plan_usage_counts: Dict[Path, int] = {p: 0 for p in all_videos}
         last_chosen_video: Optional[Path] = None
 
         plans: List[SegmentCutPlan] = []
@@ -226,68 +270,103 @@ class VideoSegmentAllocator:
             else:
                 candidate_videos = list(all_videos)
 
-            # 2. Phân loại mức độ ưu tiên của các video ứng viên
-            # Nhóm 1: Video CHƯA TỪNG ĐƯỢC SỬ DỤNG và có độ dài >= target_dur
-            tier_1_fresh = [
-                v for v in candidate_videos
-                if usage_counts[v] == 0 and source_videos_info[v] >= target_dur
+            # 2. Ràng buộc chống lặp nội bộ kịch bản:
+            # Nếu còn video chưa dùng trong plan hiện tại, bắt buộc chỉ chọn trong nhóm chưa dùng
+            fresh_in_plan = [v for v in candidate_videos if plan_usage_counts[v] == 0]
+            search_pool = fresh_in_plan if fresh_in_plan else candidate_videos
+
+            # 3. Phân loại ưu tiên đa tầng (Multi-Tier Priority)
+            # Tier 1: Video CHƯA TỪNG ĐƯỢC SỬ DỤNG TRONG TOÀN BỘ PHIÊN (Session-wide fresh)
+            if is_session_aware:
+                tier_1_session_fresh = [
+                    v for v in search_pool
+                    if self.session_usage_counts[v] == 0
+                    and plan_usage_counts[v] == 0
+                    and source_videos_info[v] >= target_dur
+                ]
+            else:
+                tier_1_session_fresh = []
+
+            # Tier 2: Video CHƯA DÙNG TRONG PLAN NÀY và đủ độ dài >= target_dur
+            tier_2_plan_fresh = [
+                v for v in search_pool
+                if plan_usage_counts[v] == 0 and source_videos_info[v] >= target_dur
             ]
 
-            # Nhóm 2: Video CÒN KHOẢNG TRỐNG TỰ DO (Free interval) >= target_dur
-            tier_2_has_gap: List[Path] = []
-            if not tier_1_fresh:
-                for v in candidate_videos:
-                    v_dur = source_videos_info[v]
-                    if v_dur >= target_dur:
-                        free_gaps = self.find_free_intervals(v_dur, used_intervals[v])
-                        if any((f_end - f_start) >= target_dur for f_start, f_end in free_gaps):
-                            tier_2_has_gap.append(v)
+            # Tier 3: Video có khoảng trống tự do (free gap) >= target_dur
+            tier_3_has_gap: List[Path] = []
+            for v in search_pool:
+                v_dur = source_videos_info[v]
+                if v_dur >= target_dur:
+                    combined_history = list(plan_used_intervals[v])
+                    if is_session_aware and self.session_used_intervals[v]:
+                        combined_history.extend(self.session_used_intervals[v])
+                    free_gaps = self.find_free_intervals(v_dur, combined_history)
+                    if any((f_end - f_start) >= target_dur for f_start, f_end in free_gaps):
+                        tier_3_has_gap.append(v)
 
-            # Nhóm 3: Video có độ dài >= target_dur nhưng đã hết khoảng trống hoàn toàn độc lập
-            tier_3_long_enough = [
-                v for v in candidate_videos
+            # Tier 4: Video có độ dài >= target_dur
+            tier_4_long_enough = [
+                v for v in search_pool
                 if source_videos_info[v] >= target_dur
             ]
 
-            # Nhóm 4: Video ngắn hơn target_dur (phải stream_loop)
-            tier_4_short = [
-                v for v in candidate_videos
+            # Tier 5: Video ngắn hơn target_dur (buộc phải stream_loop)
+            tier_5_short = [
+                v for v in search_pool
                 if source_videos_info[v] < target_dur
             ]
 
-            # 3. Lựa chọn video tốt nhất theo mức ưu tiên
+            # 4. Lựa chọn video tốt nhất theo mức ưu tiên
             chosen_video: Path
-            if tier_1_fresh:
-                chosen_video = rng.choice(tier_1_fresh)
-            elif tier_2_has_gap:
-                # Ưu tiên các video có số lần sử dụng thấp nhất trong nhóm 2
-                min_usage = min(usage_counts[v] for v in tier_2_has_gap)
-                sub_pool = [v for v in tier_2_has_gap if usage_counts[v] == min_usage]
+            if tier_1_session_fresh:
+                chosen_video = rng.choice(tier_1_session_fresh)
+            elif tier_2_plan_fresh:
+                # Ưu tiên các video có số lần sử dụng thấp nhất trong toàn bộ session
+                min_sess_usage = min(self.session_usage_counts[v] for v in tier_2_plan_fresh)
+                sub_pool = [v for v in tier_2_plan_fresh if self.session_usage_counts[v] == min_sess_usage]
                 chosen_video = rng.choice(sub_pool)
-            elif tier_3_long_enough:
-                # Ưu tiên các video có số lần dùng ít nhất
-                min_usage = min(usage_counts[v] for v in tier_3_long_enough)
-                sub_pool = [v for v in tier_3_long_enough if usage_counts[v] == min_usage]
+            elif tier_3_has_gap:
+                min_usage_val = min(
+                    (self.session_usage_counts[v] if is_session_aware else plan_usage_counts[v])
+                    for v in tier_3_has_gap
+                )
+                sub_pool = [
+                    v for v in tier_3_has_gap
+                    if (self.session_usage_counts[v] if is_session_aware else plan_usage_counts[v]) == min_usage_val
+                ]
+                chosen_video = rng.choice(sub_pool)
+            elif tier_4_long_enough:
+                min_usage = min(plan_usage_counts[v] for v in tier_4_long_enough)
+                sub_pool = [v for v in tier_4_long_enough if plan_usage_counts[v] == min_usage]
                 chosen_video = rng.choice(sub_pool)
             else:
-                # Fallback sang nhóm video ngắn
-                min_usage = min(usage_counts[v] for v in tier_4_short)
-                sub_pool = [v for v in tier_4_short if usage_counts[v] == min_usage]
+                min_usage = min(plan_usage_counts[v] for v in tier_5_short)
+                sub_pool = [v for v in tier_5_short if plan_usage_counts[v] == min_usage]
                 chosen_video = rng.choice(sub_pool)
 
-            # 4. Xác định start_time và độ đè overlap
+            # 5. Xác định start_time phi tuyến tính kết hợp lịch sử cắt
             v_dur = source_videos_info[chosen_video]
+            history_intervals = list(plan_used_intervals[chosen_video])
+            if is_session_aware and self.session_used_intervals[chosen_video]:
+                history_intervals.extend(self.session_used_intervals[chosen_video])
+
             start_time, loop_needed, overlap_ratio = self.pick_start_time(
                 video_duration=v_dur,
                 target_duration=target_dur,
-                used_intervals=used_intervals[chosen_video],
+                used_intervals=history_intervals,
                 rng=rng,
             )
 
-            # 5. Cập nhật trạng thái
+            # 6. Cập nhật trạng thái cho cả plan và session
             cut_end = min(v_dur, round(start_time + target_dur, 3))
-            used_intervals[chosen_video].append((start_time, cut_end))
-            usage_counts[chosen_video] += 1
+            plan_used_intervals[chosen_video].append((start_time, cut_end))
+            plan_usage_counts[chosen_video] += 1
+
+            if is_session_aware:
+                self.session_used_intervals[chosen_video].append((start_time, cut_end))
+                self.session_usage_counts[chosen_video] += 1
+
             last_chosen_video = chosen_video
 
             plans.append(

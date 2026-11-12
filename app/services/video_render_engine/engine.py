@@ -53,6 +53,11 @@ class VideoRenderEngine:
         """Set or replace the active renderer implementation."""
         self.renderer = renderer
 
+    def reset_session(self) -> None:
+        """Reset session state trong renderer (nếu có hỗ trợ) để bắt đầu đợt render mới."""
+        if self.renderer and hasattr(self.renderer, "reset_session"):
+            self.renderer.reset_session()
+
     def render_plan(
         self,
         source_folder: Path,

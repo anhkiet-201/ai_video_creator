@@ -1,6 +1,7 @@
 """Gemini LLM Provider triển khai giao thức BaseLLMProvider với SDK google-genai và cơ chế xoay vòng key."""
 
 import logging
+import time
 from typing import Any, Dict, List, Optional, Union
 
 from app.services.key_rotator import KeyRotator
@@ -129,6 +130,24 @@ class GeminiLLMProvider(BaseLLMProvider):
                 err_msg = str(e)
                 last_error_reason = err_msg
                 logger.warning(f"Lỗi khi gọi Gemini API với key {masked_key}: {err_msg}")
+                # Nếu là lỗi tạm thời 503 Service Unavailable, thử lại tối đa 2 lần với backoff
+                if "503" in err_msg or "UNAVAILABLE" in err_msg:
+                    recovered = False
+                    for retry_idx in range(1, 3):
+                        time.sleep(2.0 * retry_idx)
+                        try:
+                            logger.info(f"Đang thử lại kết nối Gemini (lần {retry_idx}/2) sau lỗi 503...")
+                            response = client.models.generate_content(
+                                model=self.model_name,
+                                contents=prompt,
+                                config=types.GenerateContentConfig(**config_params),
+                            )
+                            if response and response.text:
+                                return response.text
+                        except Exception as retry_err:
+                            err_msg = str(retry_err)
+                            last_error_reason = err_msg
+                            logger.warning(f"Lần thử lại {retry_idx} thất bại: {err_msg}")
                 self.key_rotator.mark_key_failed(current_key, reason=err_msg)
 
         raise LLMQuotaExhaustedError(

@@ -174,6 +174,21 @@ def test_clean_and_parse_json():
     parsed = engine._clean_and_parse_json(raw_with_extra)
     assert parsed["status"] == "success"
 
+    # 2b. JSON bị khuyết dấu nháy mở ở tên thuộc tính (lỗi thực tế từ gemini-3.5-flash-lite: sub_title":)
+    malformed_half_quoted_key = """{
+      "script_id": 1,
+      "scenes": [
+        {
+          "scene_index": 3,
+          "title": "SƠN MÁNG HÀNG LÊN CHUYỀN",
+          sub_title": "Máng hàng lên chuyền gọn gàng",
+          "srt_script": "Chuyển sang khâu tiếp theo nhìn rất nhịp nhàng."
+        }
+      ]
+    }"""
+    parsed_repaired = engine._clean_and_parse_json(malformed_half_quoted_key)
+    assert parsed_repaired["scenes"][0]["sub_title"] == "Máng hàng lên chuyền gọn gàng"
+
     # 3. Text sai cú pháp JSON
     try:
         engine._clean_and_parse_json("Đây không phải JSON gì cả")
@@ -703,10 +718,11 @@ def test_sanitize_script_tags_removes_emojis_and_unpronounceable_chars():
         assert special_char not in s1_text, f"Ký tự đặc biệt {special_char} chưa bị loại bỏ!"
         assert special_char not in s2_text, f"Ký tự đặc biệt {special_char} chưa bị loại bỏ!"
 
-    # 3. Kiểm tra các từ ngữ, dấu câu ngắt nghỉ tự nhiên và từ ghép phiên âm được bảo tồn
+    # 3. Kiểm tra các từ ngữ, dấu câu ngắt nghỉ tự nhiên và từ ghép phiên âm được bảo tồn (lương tháng được chuyển an toàn thành đãi ngộ)
     assert "Bây ơi bây xem chỗ này nè nha!" in s1_text
     assert "tuyenviec cực hot đỉnh team [cười] phô-tô và vi-đê-ô." in s1_text
-    assert "Lương tháng ổn áp rất chuẩn chỉ chuẩn 100 ngon lành [thở dài]." in s2_text
+    assert "lương tháng" not in s2_text.lower()
+    assert "đãi ngộ ổn áp rất chuẩn chỉ chuẩn 100 ngon lành [thở dài]." in s2_text
 
     print("-> PASS: test_sanitize_script_tags_removes_emojis_and_unpronounceable_chars")
 
@@ -745,7 +761,7 @@ def test_sanitize_script_tags_removes_gun_and_sensitive_words():
     # Kiểm tra srt_script không còn 'súng', 'cày cuốc', 'xoay vòng vốn', 'ứng tuyển', 'tuyển dụng', 'vào việc ngay', '2008', 'nghìn', 'ngàn', 'k', 'lương', 'lúa', 'cành'
     srt_text = scene["srt_script"]
     assert "súng" not in srt_text.lower(), f"Từ 'súng' vẫn còn trong srt_script: {srt_text}"
-    assert "bắn vít" in srt_text.lower(), f"Kỳ vọng 'bắn vít' trong srt_script: {srt_text}"
+    assert any(w in srt_text.lower() for w in ["siết vít", "bắn vít"]), f"Kỳ vọng 'siết vít' hoặc 'bắn vít' trong srt_script: {srt_text}"
     assert "cày cuốc" not in srt_text.lower(), f"Từ 'cày cuốc' vẫn còn trong srt_script: {srt_text}"
     assert "xoay vòng vốn" not in srt_text.lower(), f"Từ 'xoay vòng vốn' vẫn còn trong srt_script: {srt_text}"
     assert "ứng tuyển" not in srt_text.lower(), f"Từ 'ứng tuyển' vẫn còn trong srt_script: {srt_text}"
@@ -756,7 +772,8 @@ def test_sanitize_script_tags_removes_gun_and_sensitive_words():
     assert "lương" not in srt_text.lower(), f"Từ 'lương' vẫn còn trong srt_script: {srt_text}"
     assert "lúa" not in srt_text.lower(), f"Từ 'lúa' không nên xuất hiện: {srt_text}"
     assert "cành" not in srt_text.lower(), f"Từ 'cành' không nên xuất hiện: {srt_text}"
-    assert "240k" not in srt_text.lower(), f"Cụm '240k' chưa được làm sạch: {srt_text}"
+    assert "240" not in srt_text.lower(), f"Con số tiền lương '240' chưa được làm sạch: {srt_text}"
+    assert "40" not in srt_text.lower(), f"Con số tăng ca '40' chưa được làm sạch: {srt_text}"
 
     print("-> PASS: test_sanitize_script_tags_removes_gun_and_sensitive_words")
 
@@ -786,11 +803,11 @@ def test_sensitive_rules_module_and_random_choice():
     # Kiểm tra clean_sensitive_text (API duy nhất)
     from app.services.plan_creator.sensitive_rules import clean_sensitive_text
     
-    # 1. Quy tắc chỉ cần xóa từ súng (áp dụng cho mọi trường hợp súng, súng vít, súng đinh...)
-    assert clean_sensitive_text("Bắn súng vít chuyên nghiệp") == "Bắn vít chuyên nghiệp"
-    assert clean_sensitive_text("Thao tác bắn súng") == "Thao tác bắn"
-    assert clean_sensitive_text("Dùng súng vít để làm") == "Dùng vít để làm"
-    assert clean_sensitive_text("Dùng súng bắn đinh") == "Dùng bắn đinh"
+    # 1. Quy tắc chuyển đổi từ công cụ/vũ khí nhạy cảm sang thuật ngữ kỹ thuật an toàn, tự nhiên
+    assert clean_sensitive_text("Bắn súng vít chuyên nghiệp") == "siết vít chuyên nghiệp"
+    assert clean_sensitive_text("Thao tác bắn súng") == "thao tác máy"
+    assert clean_sensitive_text("Dùng súng vít để làm") == "Dùng siết vít để làm"
+    assert clean_sensitive_text("Dùng súng bắn đinh") == "Dùng ghép đinh"
     assert clean_sensitive_text("Cầm súng đi làm") == "Cầm đi làm"
 
     # 2. Quy tắc năm sinh & thiếu tháng (thay bằng trung tính 'mọi người', không tiêm đại từ xưng hô cứng)
@@ -798,13 +815,31 @@ def test_sensitive_rules_module_and_random_choice():
     assert "2008" not in clean_sensitive_text("Sinh năm 2008 hoặc 2k8")
     assert "2k8" not in clean_sensitive_text("Sinh năm 2008 hoặc 2k8")
 
-    # 3. Quy tắc tiền tệ & mức lương: Cấm hoàn toàn tài chính, không lách bằng 'lúa/cành/củ'
+    # 3. Quy tắc tiền tệ & mức lương: Cấm hoàn toàn tài chính & không để sót con số trơ trọi làm cụt câu
     t_luong = clean_sensitive_text("Tiền lương 240k ngày công")
     assert "lúa" not in t_luong.lower() and "cành" not in t_luong.lower() and "lương" not in t_luong.lower()
-    assert "240" in t_luong
+    assert "240" not in t_luong and "chế độ đãi ngộ ổn định" in t_luong
 
     t_tangca = clean_sensitive_text("Tăng ca 40 nghìn một giờ")
-    assert "cành" not in t_tangca.lower() and "nghìn" not in t_tangca.lower()
+    assert "cành" not in t_tangca.lower() and "nghìn" not in t_tangca.lower() and "40" not in t_tangca
+    assert "tăng ca đều đặn" in t_tangca.lower()
+
+    t_luong_thang = clean_sensitive_text("Lương tháng ổn áp")
+    assert "lương" not in t_luong_thang.lower() and "đãi ngộ ổn áp" in t_luong_thang.lower()
+
+    t_vulgar = clean_sensitive_text("Ụ má chỗ này đỉnh vãi đạn luôn")
+    assert "ụ má" not in t_vulgar.lower() and "vãi đạn" not in t_vulgar.lower()
+
+    # 3b. Kiểm tra các mẫu thực tế từ content.txt (16 - 55 tuổi, 270.000đ, 53.500đ/giờ, thanh toán lương hàng tuần)
+    t_age = clean_sensitive_text("Nhận từ 16 – 55 tuổi làm việc")
+    assert "16" not in t_age and "55" not in t_age and "mọi người" in t_age.lower()
+
+    t_vnd = clean_sensitive_text("Ca ngày: 270.000đ | Chủ nhật: 53.500đ/giờ | Tăng ca: 40.000đ/giờ | 25.000đ/phần")
+    for num in ["270.000", "53.500", "40.000", "25.000"]:
+        assert num not in t_vnd, f"Con số tiền tệ '{num}' chưa được lọc khỏi '{t_vnd}'"
+
+    t_weekly = clean_sensitive_text("Thanh toán lương hàng tuần cực kỳ uy tín")
+    assert "lương" not in t_weekly.lower() and "chế độ hỗ trợ chu đáo" in t_weekly.lower()
 
     # 4. Quy tắc Title Safeguard: Cấm triệt để từ giật tít tiền bạc / lúa / lương / tuyển dụng / việc làm trên tiêu đề video
     t1 = clean_sensitive_text("LÃNH LƯƠNG 3 NGÀY 1 LẦN", uppercase=True)
@@ -915,8 +950,8 @@ def test_hardened_pronoun_lock_and_trend_hook_grounding():
     assert "selected_pronoun_pair" in scene_schema["sub_title"]
     assert "selected_pronoun_pair" in scene_schema["srt_script"]
 
-    # 2. System Prompt: grounding ngày lễ & nhịp gọi người nghe tự nhiên
-    assert "TREND & HOLIDAY HOOK GROUNDING (ZERO FICTIONAL INVENTIONS)" in DEFAULT_SYSTEM_PROMPT
+    # 2. System Prompt: grounding thực tế nơi làm việc & nhịp gọi người nghe tự nhiên
+    assert "AUTHENTIC WORKPLACE GROUNDING (ZERO FICTION & ZERO NEWS/TRENDS)" in DEFAULT_SYSTEM_PROMPT
     assert "NATURAL CONVERSATIONAL CADENCE & STRICT BAN ON PRONOUN SPAM" in DEFAULT_SYSTEM_PROMPT
     assert "Directly address the audience naturally around 1 to 2 times" in DEFAULT_SYSTEM_PROMPT
 
@@ -1124,6 +1159,203 @@ def test_peer_call_to_action_outro_rules_and_lexicon():
     print("-> PASS: test_peer_call_to_action_outro_rules_and_lexicon")
 
 
+def test_anti_repetition_and_diversity_allocation_and_token_budget():
+    """Kiểm tra cơ chế phân bổ đa dạng, Cross-Script Anti-Repetition Digest, chống lặp transition và tiết kiệm token."""
+    from app.services.plan_creator.engine import PlanCreatorEngine, sanitize_script_tags
+    from app.services.plan_creator.prompts import (
+        DEFAULT_JSON_STRUCTURE,
+        DEFAULT_SYSTEM_PROMPT,
+        DEFAULT_USER_PROMPT_TEMPLATE,
+        LEXICON_CONTENT,
+    )
+
+    # 1. Kiểm tra ngân sách token đã được tối ưu gọn nhẹ (giảm mạnh so với ban đầu)
+    assert len(DEFAULT_SYSTEM_PROMPT) < 13000, f"System prompt cần gọn nhẹ < 13000 ký tự, thực tế: {len(DEFAULT_SYSTEM_PROMPT)}"
+    assert len(DEFAULT_USER_PROMPT_TEMPLATE) < 1200, f"User prompt template cần < 1200 ký tự, thực tế: {len(DEFAULT_USER_PROMPT_TEMPLATE)}"
+    schema_str = json.dumps(DEFAULT_JSON_STRUCTURE, ensure_ascii=False)
+    assert len(schema_str) < 900, f"Schema cần < 900 ký tự, thực tế: {len(schema_str)}"
+
+    # 2. Kiểm tra Lexicon đã loại bỏ 100% từ lóng thô tục/nhạy cảm vũ khí
+    for banned_slang in ["ụ má", "mụ nội", "má nó chứ", "vãi đạn", "vãi linh hồn", "phê lòi mắt"]:
+        assert banned_slang not in LEXICON_CONTENT.lower(), f"Lexicon vẫn còn từ lóng nhạy cảm '{banned_slang}'"
+
+    # 3. Kiểm tra Cross-Script Anti-Repetition Digest & Diversity Allocation trong create_plans
+    config = PlanCreatorConfig(
+        api_keys=["valid-key"],
+        system_prompt=DEFAULT_SYSTEM_PROMPT,
+        json_structure=DEFAULT_JSON_STRUCTURE,
+    )
+    engine = PlanCreatorEngine(config)
+
+    captured_prompts = []
+
+    def mock_generate_json(prompt, system_prompt, temperature=0.7):
+        captured_prompts.append(prompt)
+        idx = len(captured_prompts)
+        return {
+            "script_id": idx,
+            "title": f"Kịch bản #{idx}",
+            "selected_pronoun_pair": "tui - mấy bà" if idx == 1 else "mình - cả nhà",
+            "overlay_style": "bubble_cloud" if idx == 1 else "torn_paper",
+            "scenes": [
+                {
+                    "scene_index": 1,
+                    "title": "CÔNG TY TNHH ABC",
+                    "sub_title": "KCN VSIP",
+                    "srt_script": f"Hôm nay theo chân tui ghé thăm xưởng số {idx} cực kỳ sạch mát nha.",
+                    "transition": "fade",
+                },
+                {
+                    "scene_index": 2,
+                    "title": f"GÓC LÀM VIỆC SỐ {idx}",
+                    "sub_title": "Thoáng đãng",
+                    "srt_script": "Bước vào bên trong dây chuyền chạy đều tăm tắp nhìn ưng cái bụng lắm.",
+                    "transition": "fade",
+                },
+                {
+                    "scene_index": 3,
+                    "title": "BỮA TRƯA NÓNG HỔI",
+                    "sub_title": "Đầy đặn",
+                    "srt_script": "Thấy ưng ý thì bấm follow kênh và để lại bình luận bên dưới nha.",
+                    "transition": "fade",
+                },
+            ],
+        }
+
+    mock_provider = MagicMock()
+    mock_provider.provider_name = "gemini"
+    mock_provider.key_rotator = engine.key_rotator
+    mock_provider.generate_json.side_effect = mock_generate_json
+    engine._custom_llm_provider = mock_provider
+
+    result = engine.create_plans(content={"company": "ABC", "empty_field": ""}, num_scripts=3)
+    assert len(captured_prompts) == 3
+
+    # Mỗi kịch bản phải được phân bổ Story Focus và Hook khác nhau
+    assert "Story Focus 1" in captured_prompts[0]
+    assert "Story Focus 2" in captured_prompts[1]
+    assert "Story Focus 3" in captured_prompts[2]
+
+    # Kịch bản 2 và 3 phải có ANTI-REPETITION LOCK chứa dữ liệu đã dùng của kịch bản trước
+    assert "ANTI-REPETITION LOCK" not in captured_prompts[0]
+    assert "ANTI-REPETITION LOCK" in captured_prompts[1]
+    assert "tui - mấy bà" in captured_prompts[1]
+    assert "GÓC LÀM VIỆC SỐ 1" in captured_prompts[1]
+    assert "ANTI-REPETITION LOCK" in captured_prompts[2]
+    assert "mình - cả nhà" in captured_prompts[2]
+
+    # 4. Kiểm tra chống lặp transition liên tiếp trong cùng 1 kịch bản
+    scenes_s1 = result["scripts"][0]["scenes"]
+    assert scenes_s1[0]["transition"] == "fade"
+    assert scenes_s1[1]["transition"] != scenes_s1[0]["transition"], "Scene 2 không được trùng lặp transition với Scene 1!"
+    assert scenes_s1[2]["transition"] != scenes_s1[1]["transition"], "Scene 3 không được trùng lặp transition với Scene 2!"
+
+    # 5. Kiểm tra tự động retry khi gặp LLMResponseParsingError tạm thời
+    from app.services.llm.exceptions import LLMResponseParsingError
+
+    retry_calls = [0]
+
+    def mock_flaky_json(prompt, system_prompt, temperature=0.7):
+        retry_calls[0] += 1
+        if retry_calls[0] == 1:
+            raise LLMResponseParsingError("Simulated transient JSON syntax error")
+        return {
+            "script_id": 1,
+            "scenes": [{"scene_index": 1, "title": "TEST", "sub_title": "OK", "srt_script": "Thử lại thành công.", "transition": "fade"}],
+        }
+
+    mock_provider.generate_json.side_effect = mock_flaky_json
+    recovered = engine.create_single_plan(content="Nội dung test retry")
+    assert retry_calls[0] == 2
+    assert recovered["scenes"][0]["title"] == "TEST"
+
+    print("-> PASS: test_anti_repetition_and_diversity_allocation_and_token_budget")
+
+
+def test_script_id_enforcement_and_no_collision():
+    """Kiểm tra ép gán cứng script_id theo script_index, chống nhân bản đè assets."""
+    config = PlanCreatorConfig(
+        api_keys=["key1"],
+        system_prompt=DEFAULT_SYSTEM_PROMPT,
+        json_structure=DEFAULT_JSON_STRUCTURE,
+    )
+    mock_provider = MagicMock()
+
+    # Giả lập AI luôn trả về script_id = 1 (bug tiềm ẩn trước đây)
+    def mock_ai_always_returns_id_1(prompt, system_prompt, temperature=0.7):
+        return {
+            "script_id": 1,
+            "title": "TEST TITLE",
+            "scenes": [
+                {"scene_index": 1, "title": "HOOK", "sub_title": "SUB", "srt_script": "Nội dung thoại.", "transition": "fade"}
+            ],
+        }
+
+    mock_provider.generate_json.side_effect = mock_ai_always_returns_id_1
+    engine = PlanCreatorEngine(config, llm_provider=mock_provider)
+
+    # Kiểm tra create_single_plan với script_index = 2, 3, 4, 5
+    for expected_idx in [1, 2, 3, 4, 5]:
+        res = engine.create_single_plan(content="Nội dung test", script_index=expected_idx)
+        assert res["script_id"] == expected_idx, f"Lẽ ra script_id phải là {expected_idx}, nhận được {res['script_id']}"
+
+    # Kiểm tra create_plans với num_scripts = 5
+    batch_res = engine.create_plans(content="Nội dung test", num_scripts=5)
+    scripts = batch_res["scripts"]
+    assert len(scripts) == 5
+    ids = [s["script_id"] for s in scripts]
+    assert ids == [1, 2, 3, 4, 5], f"Danh sách script_id bị trùng lặp: {ids}"
+    assert len(set(ids)) == 5, "Các script_id không được phép trùng lặp!"
+
+    print("-> PASS: test_script_id_enforcement_and_no_collision")
+
+
+def test_rustic_and_authentic_workplace_hook():
+    """Kiểm tra chỉ thị mở đầu Scene 1 dân dã, thực tế, cấm thời sự và drama mạng."""
+    from app.services.plan_creator.engine import UNIVERSAL_STORY_PERSPECTIVES, PlanCreatorEngine
+    from app.services.plan_creator.prompts import DEFAULT_JSON_STRUCTURE, DEFAULT_SYSTEM_PROMPT
+
+    # 1. Không còn từ ngữ nào hardcode xưởng motor / CNC trong UNIVERSAL_STORY_PERSPECTIVES
+    for perspective in UNIVERSAL_STORY_PERSPECTIVES:
+        assert "cục ốp lỗi đồng" not in perspective.lower()
+        assert "chuyền sơn" not in perspective.lower()
+        assert "máy cnc" not in perspective.lower()
+
+    # 2. Kiểm tra chỉ thị rustic hook directive vào prompt content
+    config = PlanCreatorConfig(
+        api_keys=["key1"],
+        system_prompt=DEFAULT_SYSTEM_PROMPT,
+        json_structure=DEFAULT_JSON_STRUCTURE,
+    )
+
+    mock_provider = MagicMock()
+    captured_prompts = []
+
+    def mock_gen(prompt, system_prompt, temperature=0.7):
+        captured_prompts.append(prompt)
+        return {
+            "script_id": 1,
+            "title": "TEST TITLE",
+            "scenes": [
+                {"scene_index": 1, "title": "HOOK", "sub_title": "SUB", "srt_script": "Thoại.", "transition": "fade"}
+            ],
+        }
+
+    mock_provider.generate_json.side_effect = mock_gen
+    engine = PlanCreatorEngine(config, llm_provider=mock_provider)
+
+    res = engine.create_single_plan(content="Nội dung bất kỳ về xưởng cơ khí", script_index=1)
+    assert len(captured_prompts) == 1
+    prompt = captured_prompts[0]
+
+    # Kiểm tra chỉ thị hook dân dã & cấm drama thời sự
+    assert "Scene 1 Rustic & Authentic Hook Directive" in prompt
+    assert "ABSOLUTE PROHIBITION ON NEWS & INTERNET DRAMA (STRICT BAN)" in prompt
+    assert "Myth-Busting Heavy Labor" in prompt
+
+    print("-> PASS: test_rustic_and_authentic_workplace_hook")
+
+
 if __name__ == "__main__":
     test_invalid_num_scripts()
     test_empty_content_raises_empty_content_error()
@@ -1154,6 +1386,9 @@ if __name__ == "__main__":
     test_prompt_size_budget()
     test_provider_dynamic_resolution_switch()
     test_peer_call_to_action_outro_rules_and_lexicon()
+    test_anti_repetition_and_diversity_allocation_and_token_budget()
+    test_script_id_enforcement_and_no_collision()
+    test_rustic_and_authentic_workplace_hook()
     print("\n==================================================")
     print(" TOÀN BỘ UNIT TESTS CỦA PLAN CREATOR ĐÃ VƯỢT QUA! ")
     print("==================================================")
