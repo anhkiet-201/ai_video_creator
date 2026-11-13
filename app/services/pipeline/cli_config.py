@@ -55,6 +55,7 @@ CLI_FLAG_MAP: Dict[str, str] = {
     "--content-file": "content_file",
     "--content": "content",
     "--source-folder": "source_folder",
+    "--source-folders": "source_folder",
     "--num-videos": "num_videos",
     "--api-keys": "api_keys",
     "--llm-provider": "provider",
@@ -143,6 +144,71 @@ def resolve_filesystem_path(path_val: Any, base_dir: Path) -> Optional[Path]:
     # 2. Xử lý đường dẫn tương đối: loại bỏ tiền tố ./ hoặc .\ nếu có và chuẩn hóa dấu gạch chéo
     normalized_relative = re.sub(r"^\.[\/\\]+", "", raw_str).replace("\\", "/")
     return (base_dir / normalized_relative).resolve()
+
+
+def parse_source_folder_inputs(raw_val: Any, base_dir: Optional[Path] = None) -> List[str]:
+    """Bóc tách giá trị cấu hình source_folder (chuỗi, mảng, hoặc phân tách bởi dấu phẩy/chấm phẩy)
+    thành danh sách các chuỗi đường dẫn đã làm sạch.
+    """
+    if raw_val is None:
+        return []
+
+    items = raw_val if isinstance(raw_val, (list, tuple, set)) else [raw_val]
+    tokens: List[str] = []
+
+    for item in items:
+        if item is None:
+            continue
+        if isinstance(item, (list, tuple, set)):
+            tokens.extend(parse_source_folder_inputs(item, base_dir=base_dir))
+            continue
+
+        raw_str = str(item).strip()
+        if not raw_str:
+            continue
+
+        # Nếu chuỗi chứa dấu phẩy hoặc chấm phẩy, kiểm tra xem cả chuỗi có phải là 1 thư mục thực tế tồn tại không
+        if "," in raw_str or ";" in raw_str:
+            whole_exists = False
+            try:
+                if base_dir is not None:
+                    cand = resolve_filesystem_path(raw_str, base_dir)
+                    whole_exists = bool(cand and cand.exists())
+                else:
+                    whole_exists = Path(os.path.expanduser(raw_str)).exists()
+            except Exception:
+                whole_exists = False
+
+            if whole_exists:
+                if raw_str not in tokens:
+                    tokens.append(raw_str)
+                continue
+
+            for part in re.split(r"[,;]+", raw_str):
+                cleaned = part.strip().strip("\"'")
+                if cleaned and cleaned not in tokens:
+                    tokens.append(cleaned)
+        else:
+            cleaned = raw_str.strip("\"'")
+            if cleaned and cleaned not in tokens:
+                tokens.append(cleaned)
+
+    return tokens
+
+
+def resolve_source_folders(raw_val: Any, base_dir: Path) -> List[Path]:
+    """Chuẩn hóa một hoặc nhiều đường dẫn source_folder thành danh sách Path tuyệt đối (khử trùng lặp)."""
+    raw_tokens = parse_source_folder_inputs(raw_val, base_dir=base_dir)
+    resolved_paths: List[Path] = []
+    seen: Set[Path] = set()
+
+    for token in raw_tokens:
+        p = resolve_filesystem_path(token, base_dir)
+        if p is not None and p not in seen:
+            seen.add(p)
+            resolved_paths.append(p)
+
+    return resolved_paths
 
 
 def load_json_config(config_path: Path) -> Tuple[Dict[str, Any], bool, Optional[str]]:
@@ -293,6 +359,9 @@ def merge_config_with_cli(
         has_cli_explicit = field in explicit_keys
         has_json = field in json_config
         json_val = json_config.get(field)
+        if field == "source_folder" and json_val is None and json_config.get("source_folders") is not None:
+            has_json = True
+            json_val = json_config.get("source_folders")
 
         if has_cli_explicit:
             merged[field] = cli_val

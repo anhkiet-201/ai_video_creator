@@ -17,10 +17,12 @@ fi
 
 HAS_SOURCE=0
 for arg in "$@"; do
-    if [ "$arg" = "--source-folder" ]; then
-        HAS_SOURCE=1
-        break
-    fi
+    case "$arg" in
+        --source-folder|--source-folders|--source-folder=*|--source-folders=*)
+            HAS_SOURCE=1
+            break
+            ;;
+    esac
 done
 
 if [ "$HAS_SOURCE" -eq 1 ]; then

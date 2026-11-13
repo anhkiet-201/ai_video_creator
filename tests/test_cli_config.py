@@ -13,7 +13,9 @@ from app.services.pipeline.cli_config import (
     is_cross_platform_absolute,
     load_json_config,
     merge_config_with_cli,
+    parse_source_folder_inputs,
     resolve_filesystem_path,
+    resolve_source_folders,
 )
 
 
@@ -278,6 +280,43 @@ class TestCLIConfig(unittest.TestCase):
         self.assertEqual(overridden_override[0][0], "provider")
         self.assertEqual(overridden_override[0][1], "lm_studio")
         self.assertEqual(overridden_override[0][2], "gemini")
+
+    def test_resolve_multiple_source_folders_cli_and_json(self):
+        """Kiểm tra hỗ trợ nhiều --source-folder qua mảng JSON, cờ CLI lặp/nhiều tham số và chuỗi dấu phẩy."""
+        base_dir = self.tmp_path
+        dir_a = base_dir / "folder_a"
+        dir_b = base_dir / "folder_b"
+        dir_comma = base_dir / "folder,with,comma"
+        dir_a.mkdir()
+        dir_b.mkdir()
+        dir_comma.mkdir()
+
+        # 1. Phân tách chuỗi có dấu phẩy/chấm phẩy và khử trùng lặp
+        paths_csv = resolve_source_folders("./folder_a, ./folder_b; ./folder_a", base_dir)
+        self.assertEqual(paths_csv, [dir_a.resolve(), dir_b.resolve()])
+
+        # 2. Giữ nguyên tên thư mục có dấu phẩy nếu thư mục đó thực sự tồn tại trên đĩa
+        paths_existing_comma = resolve_source_folders("folder,with,comma", base_dir)
+        self.assertEqual(paths_existing_comma, [dir_comma.resolve()])
+
+        # 3. Nạp mảng từ config.json và ghi đè từ CLI (--source-folders alias)
+        json_data = {"source_folder": ["./folder_a", "./folder_b"]}
+        cli_args = argparse.Namespace()
+        resolved, _, _ = merge_config_with_cli(json_data, cli_args, explicit_keys=set())
+        self.assertEqual(resolved["source_folder"], ["./folder_a", "./folder_b"])
+
+        # Hỗ trợ fallback key "source_folders" trong config.json
+        json_data_plural = {"source_folder": None, "source_folders": ["./folder_a", "./folder_b"]}
+        resolved_plural, _, _ = merge_config_with_cli(json_data_plural, cli_args, explicit_keys=set())
+        self.assertEqual(resolved_plural["source_folder"], ["./folder_a", "./folder_b"])
+
+        # CLI truyền --source-folders ghi đè config.json
+        explicit = get_explicit_cli_flags(["--source-folders", "./folder_b"])
+        self.assertIn("source_folder", explicit)
+        cli_args_override = argparse.Namespace(source_folder=["./folder_b"])
+        resolved_cli, overridden_cli, _ = merge_config_with_cli(json_data, cli_args_override, explicit)
+        self.assertEqual(resolved_cli["source_folder"], ["./folder_b"])
+        self.assertEqual(len(overridden_cli), 1)
 
 
 if __name__ == "__main__":

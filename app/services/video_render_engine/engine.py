@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
 from pathlib import Path
 import time
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Sequence, Union
 
 from app.services.video_render_engine.processors.anti_reup import AntiReupEngine
 from app.services.video_render_engine.renderers.base import BaseVideoRenderer
@@ -58,9 +58,30 @@ class VideoRenderEngine:
         if self.renderer and hasattr(self.renderer, "reset_session"):
             self.renderer.reset_session()
 
+    @staticmethod
+    def _normalize_source_folders(
+        source_folder: Union[Path, str, Sequence[Union[Path, str]]]
+    ) -> List[Path]:
+        """Chuẩn hóa tham số source_folder (1 đường dẫn hoặc danh sách đường dẫn) thành List[Path]."""
+        if isinstance(source_folder, (Path, str)):
+            return [Path(source_folder)]
+        if isinstance(source_folder, (list, tuple, set)):
+            result: List[Path] = []
+            seen: set = set()
+            for item in source_folder:
+                if item is None:
+                    continue
+                p = Path(item)
+                resolved_key = p.expanduser().resolve() if p.exists() else p
+                if resolved_key not in seen:
+                    seen.add(resolved_key)
+                    result.append(p)
+            return result
+        return []
+
     def render_plan(
         self,
-        source_folder: Path,
+        source_folder: Union[Path, Sequence[Path]],
         plan: VideoRenderPlan,
         on_log: Optional[Callable[[str, str, str], None]] = None,
     ) -> RenderResult:
@@ -69,7 +90,7 @@ class VideoRenderEngine:
         Accumulates execution logs purely in memory without creating files on disk.
 
         Args:
-            source_folder: Path to folder containing video/image assets.
+            source_folder: Path or sequence of Paths to folders containing video/image assets.
             plan: Blueprint containing scenes, texts, audio, and durations.
             on_log: Optional callback(plan_id, level, message) for real-time log event streaming.
 
@@ -83,7 +104,11 @@ class VideoRenderEngine:
 
         task_logger.info(f"Bắt đầu render video: '{plan.title}' ({len(plan.scenes)} scenes)")
         task_logger.info(f"Sử dụng renderer: {self.renderer.renderer_name}")
-        task_logger.info(f"Thư mục tư liệu nguồn: {source_folder}")
+        if isinstance(source_folder, (list, tuple, set)):
+            folders_str = ", ".join(str(p) for p in source_folder)
+            task_logger.info(f"Thư mục tư liệu nguồn ({len(source_folder)} thư mục): {folders_str}")
+        else:
+            task_logger.info(f"Thư mục tư liệu nguồn: {source_folder}")
         if plan.voice_clone_path:
             task_logger.info(f"Giọng đọc Voice Clone: '{plan.voice_clone_path.name}' ({plan.voice_clone_path})")
         if plan.bgm_path:
@@ -154,7 +179,7 @@ class VideoRenderEngine:
 
     def render_batch(
         self,
-        source_folder: Path,
+        source_folder: Union[Path, Sequence[Path]],
         plans: List[VideoRenderPlan],
         max_workers: Optional[int] = None,
         on_progress: Optional[Callable[[RenderResult], None]] = None,
@@ -230,7 +255,7 @@ class VideoRenderEngine:
 
     def _validate_inputs(
         self,
-        source_folder: Path,
+        source_folder: Union[Path, Sequence[Path]],
         plan: Optional[VideoRenderPlan] = None,
     ) -> None:
         """Verify inputs and configuration."""
@@ -240,7 +265,15 @@ class VideoRenderEngine:
                 "Vui lòng truyền renderer vào constructor hoặc gọi set_renderer(renderer)."
             )
 
-        if not source_folder.exists() or not source_folder.is_dir():
+        folders = self._normalize_source_folders(source_folder)
+        valid_folders: List[Path] = []
+        for folder in folders:
+            if folder.exists() and folder.is_dir():
+                valid_folders.append(folder)
+            else:
+                logger.warning(f"Thư mục nguồn không tồn tại hoặc không phải thư mục, bỏ qua: {folder}")
+
+        if not valid_folders:
             raise SourceFolderNotFoundError(f"Thư mục nguồn không tồn tại hoặc không phải thư mục: {source_folder}")
 
         if plan is not None:

@@ -7,7 +7,7 @@ concrete renderers and factory functions for complete backward compatibility.
 from abc import ABC, abstractmethod
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from app.services.video_render_engine.core.config import VideoRenderConfig
 from app.services.video_render_engine.core.logger import TaskLogger
@@ -48,7 +48,7 @@ class BaseVideoRenderer(ABC):
     def render_plan(
         self,
         plan: VideoRenderPlan,
-        source_folder: Path,
+        source_folder: Union[Path, Sequence[Path]],
         config: VideoRenderConfig,
         profile: AntiReupProfile,
         task_logger: TaskLogger,
@@ -57,7 +57,7 @@ class BaseVideoRenderer(ABC):
 
         Args:
             plan: Blueprint containing scenes, texts, durations, and audio paths.
-            source_folder: Directory containing b-roll video/image assets.
+            source_folder: Directory or sequence of directories containing b-roll video/image assets.
             config: VideoRenderConfig (resolution, fps, paths, extra_params).
             profile: AntiReupProfile with randomized micro-parameters.
             task_logger: In-memory thread-isolated logger (task_logger.info/warning/error).
@@ -71,7 +71,7 @@ class BaseVideoRenderer(ABC):
         self,
         plan: VideoRenderPlan,
         task_logger: TaskLogger,
-        source_folder: Optional[Path] = None,
+        source_folder: Optional[Union[Path, Sequence[Path]]] = None,
         config: Optional[VideoRenderConfig] = None,
     ) -> None:
         """Optional hook invoked before rendering starts."""

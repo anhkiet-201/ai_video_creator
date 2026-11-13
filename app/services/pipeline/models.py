@@ -1,6 +1,8 @@
 """Domain data models and schemas for Video Creation Pipeline (6-Step Flow)."""
 
+import logging
 from pathlib import Path
+import re
 from typing import Any, Callable, Dict, List, Optional, Union
 from pydantic import BaseModel, Field, field_validator
 
@@ -8,6 +10,8 @@ from app.config import OUTPUTS_DIR, VIDEO_HEIGHT, VIDEO_WIDTH
 from app.services.render_overlay_engine.styles import BaseOverlayStyle
 from app.services.tts_engine.constants import VieNeuVoice
 from app.services.video_render_engine.models import RenderResult, VideoRenderPlan
+
+logger = logging.getLogger(__name__)
 
 
 class RoughScene(BaseModel):
@@ -55,9 +59,9 @@ class PipelineInput(BaseModel):
         ...,
         description="Văn bản nội dung gốc (tin tuyển dụng, bài viết, thông tin tuyển...)"
     )
-    video_source_path: Path = Field(
+    video_source_path: Union[Path, List[Path]] = Field(
         ...,
-        description="Đường dẫn thư mục chứa video và ảnh b-roll nguồn"
+        description="Đường dẫn hoặc danh sách đường dẫn thư mục chứa video và ảnh b-roll nguồn"
     )
     num_videos: int = Field(
         default=1,
@@ -198,13 +202,82 @@ class PipelineInput(BaseModel):
             raise ValueError("Nội dung 'content' không được để trống!")
         return cleaned
 
-    @field_validator("video_source_path")
+    @field_validator("video_source_path", mode="before")
     @classmethod
-    def validate_video_source_path(cls, v: Path) -> Path:
-        resolved = Path(v).expanduser().resolve()
-        if not resolved.exists() or not resolved.is_dir():
-            raise ValueError(f"Thư mục 'video_source_path' không tồn tại hoặc không phải thư mục: {resolved}")
-        return resolved
+    def validate_video_source_path(cls, v: Any) -> Union[Path, List[Path]]:
+        if v is None:
+            raise ValueError("Thư mục 'video_source_path' không được để trống!")
+
+        # Trường hợp truyền 1 Path hoặc 1 chuỗi đường dẫn đơn lẻ
+        if isinstance(v, Path):
+            resolved = v.expanduser().resolve()
+            if not resolved.exists() or not resolved.is_dir():
+                raise ValueError(f"Thư mục 'video_source_path' không tồn tại hoặc không phải thư mục: {resolved}")
+            return resolved
+
+        if isinstance(v, str):
+            raw_str = v.strip()
+            if not raw_str:
+                raise ValueError("Thư mục 'video_source_path' không được để trống!")
+            single_cand = Path(raw_str).expanduser()
+            if ("," not in raw_str and ";" not in raw_str) or single_cand.exists():
+                resolved = single_cand.resolve()
+                if not resolved.exists() or not resolved.is_dir():
+                    raise ValueError(f"Thư mục 'video_source_path' không tồn tại hoặc không phải thư mục: {resolved}")
+                return resolved
+            raw_items: List[Any] = [p.strip().strip("\"'") for p in re.split(r"[,;]+", raw_str) if p.strip()]
+        elif isinstance(v, (list, tuple, set)):
+            raw_items = list(v)
+        else:
+            raise ValueError(f"Kiểu dữ liệu 'video_source_path' không hợp lệ: {type(v)}")
+
+        candidates: List[Path] = []
+        seen: set = set()
+        for item in raw_items:
+            if item is None:
+                continue
+            if isinstance(item, Path):
+                p = item.expanduser().resolve()
+                if p not in seen:
+                    seen.add(p)
+                    candidates.append(p)
+            else:
+                s = str(item).strip().strip("\"'")
+                if not s:
+                    continue
+                single_p = Path(s).expanduser()
+                if ("," in s or ";" in s) and not single_p.exists():
+                    for part in re.split(r"[,;]+", s):
+                        clean_part = part.strip().strip("\"'")
+                        if clean_part:
+                            rp = Path(clean_part).expanduser().resolve()
+                            if rp not in seen:
+                                seen.add(rp)
+                                candidates.append(rp)
+                else:
+                    rp = single_p.resolve()
+                    if rp not in seen:
+                        seen.add(rp)
+                        candidates.append(rp)
+
+        valid_paths: List[Path] = []
+        for cand in candidates:
+            if cand.exists() and cand.is_dir():
+                valid_paths.append(cand)
+            else:
+                logger.warning(f"Thư mục 'video_source_path' không tồn tại hoặc không phải thư mục, bỏ qua: {cand}")
+
+        if not valid_paths:
+            raise ValueError(f"Thư mục 'video_source_path' không tồn tại hoặc không có thư mục nào hợp lệ: {v}")
+
+        return valid_paths
+
+    @property
+    def video_source_paths(self) -> List[Path]:
+        """Trả về danh sách các thư mục nguồn dưới dạng List[Path] thống nhất."""
+        if isinstance(self.video_source_path, list):
+            return list(self.video_source_path)
+        return [self.video_source_path]
 
 
 class PipelineResult(BaseModel):

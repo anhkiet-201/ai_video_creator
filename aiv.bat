@@ -17,6 +17,7 @@ if /i "%~1"=="update" (
 set "HAS_SOURCE=0"
 for %%A in (%*) do (
     if /i "%%~A"=="--source-folder" set "HAS_SOURCE=1"
+    if /i "%%~A"=="--source-folders" set "HAS_SOURCE=1"
 )
 
 if "%HAS_SOURCE%"=="1" goto run_with_source

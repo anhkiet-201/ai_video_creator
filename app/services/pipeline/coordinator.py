@@ -17,7 +17,7 @@ import re
 import shutil
 import time
 import uuid
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
 import soundfile as sf
 
@@ -220,20 +220,42 @@ class VideoCreationPipeline:
         if not input_data.content or not input_data.content.strip():
             raise StepValidationError("Lỗi Bước 1: Nội dung văn bản 'content' không được để trống!")
 
-        # 1.2 Kiểm tra thư mục video_source_path
-        source_dir = input_data.video_source_path
-        if not source_dir.exists() or not source_dir.is_dir():
-            raise StepValidationError(f"Lỗi Bước 1: Thư mục 'video_source_path' không tồn tại: {source_dir}")
+        # 1.2 Kiểm tra thư mục video_source_path (hỗ trợ 1 hoặc nhiều thư mục nguồn)
+        source_dirs = input_data.video_source_paths
+        media_files: List[Path] = []
+        seen_media: set = set()
+        valid_dirs_count = 0
 
-        media_files = [
-            f for f in source_dir.rglob("*")
-            if f.is_file()
-            and f.suffix.lower() in SUPPORTED_MEDIA_EXTS
-            and not any(p.startswith(".") for p in f.relative_to(source_dir).parts)
-        ]
+        for source_dir in source_dirs:
+            if not source_dir.exists() or not source_dir.is_dir():
+                logger.warning(f"[Bước 1] Thư mục 'video_source_path' không tồn tại, bỏ qua: {source_dir}")
+                continue
+            valid_dirs_count += 1
+            dir_media = [
+                f for f in source_dir.rglob("*")
+                if f.is_file()
+                and f.suffix.lower() in SUPPORTED_MEDIA_EXTS
+                and not any(p.startswith(".") for p in f.relative_to(source_dir).parts)
+            ]
+            if not dir_media:
+                logger.warning(
+                    f"[Bước 1] Thư mục tư liệu '{source_dir}' không chứa file video hoặc ảnh hợp lệ nào, bỏ qua."
+                )
+                continue
+            for mf in dir_media:
+                resolved_mf = mf.resolve()
+                if resolved_mf not in seen_media:
+                    seen_media.add(resolved_mf)
+                    media_files.append(mf)
+
+        if valid_dirs_count == 0:
+            raise StepValidationError(
+                f"Lỗi Bước 1: Thư mục 'video_source_path' không tồn tại: {input_data.video_source_path}"
+            )
+
         if not media_files:
             raise StepValidationError(
-                f"Lỗi Bước 1: Thư mục tư liệu '{source_dir}' không chứa file video hoặc ảnh hợp lệ nào!"
+                f"Lỗi Bước 1: Thư mục tư liệu '{input_data.video_source_path}' không chứa file video hoặc ảnh hợp lệ nào!"
             )
 
         # 1.2b Pre-warm kiểm tra file media (kích hoạt macOS CloudStorage/FileProvider tải dữ liệu về máy)
@@ -829,7 +851,7 @@ class VideoCreationPipeline:
     # -------------------------------------------------------------------------
     def step_5_render_videos(
         self,
-        source_folder: Path,
+        source_folder: Union[Path, Sequence[Path]],
         detailed_plans: List[VideoRenderPlan],
         anti_reup_level: str = "medium",
         output_dir: Path = OUTPUTS_DIR,

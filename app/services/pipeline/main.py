@@ -60,9 +60,12 @@ def main():
     )
     parser.add_argument(
         "--source-folder",
-        type=str,
-        default="assets/samples/company_media",
-        help="Đường dẫn thư mục chứa video và ảnh b-roll nguồn (mặc định: assets/samples/company_media)",
+        "--source-folders",
+        dest="source_folder",
+        nargs="+",
+        action="extend",
+        default=None,
+        help="Một hoặc nhiều đường dẫn thư mục chứa video và ảnh b-roll nguồn (mặc định: assets/samples/company_media)",
     )
     parser.add_argument(
         "--num-videos",
@@ -238,6 +241,7 @@ def main():
         load_json_config,
         merge_config_with_cli,
         resolve_filesystem_path,
+        resolve_source_folders,
     )
 
     config_path = resolve_filesystem_path(args.config, BASE_DIR)
@@ -285,10 +289,23 @@ def main():
             print("[✗] Lỗi: Vui lòng truyền --content hoặc --content-file!", file=sys.stderr)
             sys.exit(1)
 
-    source_path = resolve_filesystem_path(resolved.get("source_folder", "assets/samples/company_media"), BASE_DIR)
-    if not source_path or not source_path.exists():
-        print(f"[✗] Lỗi: Thư mục tư liệu không tồn tại: {source_path}", file=sys.stderr)
+    candidate_source_paths = resolve_source_folders(
+        resolved.get("source_folder", "assets/samples/company_media"), BASE_DIR
+    )
+    valid_source_paths = []
+    source_folder_warnings = []
+    for sp in candidate_source_paths:
+        if sp.exists() and sp.is_dir():
+            valid_source_paths.append(sp)
+        else:
+            source_folder_warnings.append(f"Thư mục tư liệu không tồn tại, bỏ qua: {sp}")
+
+    if not valid_source_paths:
+        missing_str = ", ".join(str(p) for p in candidate_source_paths) or str(resolved.get("source_folder"))
+        print(f"[✗] Lỗi: Thư mục tư liệu không tồn tại: {missing_str}", file=sys.stderr)
         sys.exit(1)
+
+    source_path = valid_source_paths[0] if len(valid_source_paths) == 1 else valid_source_paths
 
     api_keys = resolved.get("api_keys") or []
     if isinstance(api_keys, str):
@@ -343,6 +360,10 @@ def main():
         for notice in conflict_notices:
             print(f"  {Colors.BOLD_YELLOW}⚠ Xử lý xung đột:{Colors.RESET} {Colors.YELLOW}{notice}{Colors.RESET}")
 
+    if source_folder_warnings:
+        for warn_msg in source_folder_warnings:
+            print(f"  {Colors.BOLD_YELLOW}⚠ Cảnh báo tư liệu:{Colors.RESET} {Colors.YELLOW}{warn_msg}{Colors.RESET}")
+
     if overridden:
         override_summary = ", ".join([f"--{f}" for f, _, _ in overridden])
         _print_param("Cờ CLI ghi đè runtime:", f"{len(overridden)} thông số ({override_summary})")
@@ -355,7 +376,14 @@ def main():
     elif resolved.get("content_file"):
         _print_param("Nội dung đầu vào:", f"Từ file: {resolved['content_file']} ({len(raw_content)} ký tự)")
 
-    _print_param("Thư mục tư liệu nguồn:", str(pipeline_input.video_source_path))
+    source_paths_list = pipeline_input.video_source_paths
+    if len(source_paths_list) == 1:
+        _print_param("Thư mục tư liệu nguồn:", str(source_paths_list[0]))
+    else:
+        _print_param(
+            "Thư mục tư liệu nguồn:",
+            f"{len(source_paths_list)} thư mục ({', '.join(str(p) for p in source_paths_list)})",
+        )
     _print_param("Số lượng video yêu cầu:", f"{pipeline_input.num_videos} video thành phẩm")
     _print_param("Nhà cung cấp LLM:", f"{str(pipeline_input.llm_provider).upper()} ({pipeline_input.model_name})")
     if pipeline_input.llm_base_url:

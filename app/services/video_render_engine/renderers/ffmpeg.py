@@ -7,7 +7,7 @@ import random
 import shutil
 import subprocess
 import sys
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 from app.config import AUDIO_SAMPLE_RATE, TRANSITION_DURATION
 from app.services.plan_creator.constants import FFMPEG_TRANSITIONS
@@ -129,17 +129,42 @@ class FFmpegBaseRenderer(BaseVideoRenderer):
             logger.warning(f"Không thể đo duration file {file_path}: {e}")
             return 0.0
 
-    def _scan_source_videos(self, source_folder: Path) -> List[Path]:
-        """Scan directory for valid b-roll video files."""
-        if not source_folder.exists() or not source_folder.is_dir():
+    def _scan_source_videos(self, source_folder: Union[Path, Sequence[Path]]) -> List[Path]:
+        """Scan one or more directories for valid b-roll video files (merged & deduplicated pool)."""
+        if isinstance(source_folder, (Path, str)):
+            folders = [Path(source_folder)]
+        elif isinstance(source_folder, (list, tuple, set)):
+            folders = [Path(p) for p in source_folder if p is not None]
+        else:
+            folders = []
+
+        valid_dirs = 0
+        video_files: List[Path] = []
+        seen_resolved: set = set()
+
+        for folder in folders:
+            if not folder.exists() or not folder.is_dir():
+                logger.warning(f"Thư mục nguồn không tồn tại hoặc không phải thư mục, bỏ qua: {folder}")
+                continue
+            valid_dirs += 1
+            folder_videos = [
+                f for f in folder.rglob("*")
+                if f.is_file()
+                and f.suffix.lower() in SUPPORTED_VIDEO_EXTENSIONS
+                and not any(p.startswith(".") for p in f.relative_to(folder).parts)
+            ]
+            if not folder_videos:
+                logger.warning(f"Thư mục nguồn '{folder}' không chứa video b-roll hợp lệ nào, bỏ qua.")
+                continue
+            for vf in folder_videos:
+                resolved_vf = vf.resolve()
+                if resolved_vf not in seen_resolved:
+                    seen_resolved.add(resolved_vf)
+                    video_files.append(vf)
+
+        if valid_dirs == 0:
             raise SourceFolderNotFoundError(f"Thư mục nguồn không tồn tại: {source_folder}")
 
-        video_files = [
-            f for f in source_folder.rglob("*")
-            if f.is_file()
-            and f.suffix.lower() in SUPPORTED_VIDEO_EXTENSIONS
-            and not any(p.startswith(".") for p in f.relative_to(source_folder).parts)
-        ]
         return video_files
 
     def _build_scale_filter(
@@ -174,7 +199,7 @@ class FFmpegBaseRenderer(BaseVideoRenderer):
         self,
         plan: VideoRenderPlan,
         task_logger: TaskLogger,
-        source_folder: Optional[Path] = None,
+        source_folder: Optional[Union[Path, Sequence[Path]]] = None,
         config: Optional[VideoRenderConfig] = None,
     ) -> None:
         """Hook invoked before rendering:
@@ -320,7 +345,7 @@ class FFmpegBaseRenderer(BaseVideoRenderer):
     def render_plan(
         self,
         plan: VideoRenderPlan,
-        source_folder: Path,
+        source_folder: Union[Path, Sequence[Path]],
         config: VideoRenderConfig,
         profile: AntiReupProfile,
         task_logger: TaskLogger,

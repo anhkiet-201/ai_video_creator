@@ -147,6 +147,88 @@ class TestVideoCreationPipeline(unittest.TestCase):
         with self.assertRaises(StepValidationError):
             self.pipeline.step_1_validate_inputs(inp)
 
+    def test_step_1_validate_multiple_source_folders_merged_pool(self):
+        """Gộp chung kho B-roll (Merged Pool) từ nhiều thư mục nguồn và khử trùng lặp."""
+        folder_1 = self.root_temp / "source_pool_1"
+        folder_2 = self.root_temp / "source_pool_2"
+        folder_1.mkdir(parents=True, exist_ok=True)
+        folder_2.mkdir(parents=True, exist_ok=True)
+
+        (folder_1 / "v1.mp4").write_bytes(b"\x00" * 100)
+        (folder_1 / "v2.mov").write_bytes(b"\x00" * 100)
+        (folder_2 / "v3.mp4").write_bytes(b"\x00" * 100)
+        (folder_2 / "img1.png").write_bytes(b"\x00" * 100)
+
+        inp = PipelineInput(
+            content=self.sample_content,
+            video_source_path=[folder_1, folder_2, folder_1],  # Truyền lặp folder_1 để test deduplicate
+            num_videos=1,
+            api_keys=["AIzaSyFakeKey123"],
+            output_dir=self.mock_output_dir,
+        )
+
+        self.assertEqual(len(inp.video_source_paths), 2)
+        res = self.pipeline.step_1_validate_inputs(inp)
+        self.assertEqual(res["media_files_count"], 4)  # 3 videos + 1 image
+
+        from app.services.video_render_engine.renderers.ffmpeg import FFmpegBaseRenderer
+        renderer = FFmpegBaseRenderer()
+        scanned_videos = renderer._scan_source_videos(inp.video_source_path)
+        self.assertEqual(len(scanned_videos), 3)
+
+    def test_step_1_validate_multiple_source_folders_graceful_skip_invalid_or_empty(self):
+        """Cảnh báo và bỏ qua thư mục không tồn tại hoặc rỗng nếu vẫn còn ít nhất 1 thư mục hợp lệ có media."""
+        nonexistent_dir = self.root_temp / "does_not_exist_dir"
+        empty_dir = self.root_temp / "empty_dir_in_list"
+        empty_dir.mkdir(parents=True, exist_ok=True)
+
+        inp = PipelineInput(
+            content=self.sample_content,
+            video_source_path=[nonexistent_dir, empty_dir, self.mock_source_folder],
+            num_videos=1,
+            api_keys=["AIzaSyFakeKey123"],
+            output_dir=self.mock_output_dir,
+        )
+
+        # nonexistent_dir đã bị lọc kèm warning ở validator, còn empty_dir và mock_source_folder
+        self.assertEqual(len(inp.video_source_paths), 2)
+
+        res = self.pipeline.step_1_validate_inputs(inp)
+        self.assertEqual(res["media_files_count"], 2)
+
+        from app.services.video_render_engine.renderers.ffmpeg import FFmpegBaseRenderer
+        renderer = FFmpegBaseRenderer()
+        scanned_videos = renderer._scan_source_videos([nonexistent_dir, empty_dir, self.mock_source_folder])
+        self.assertEqual(len(scanned_videos), 1)
+
+    def test_step_1_validate_multiple_source_folders_all_invalid_or_empty_raises(self):
+        """Báo lỗi dừng lại khi tất cả các thư mục nguồn đều không tồn tại hoặc đều trống."""
+        nonexistent_1 = self.root_temp / "missing_1"
+        nonexistent_2 = self.root_temp / "missing_2"
+        with self.assertRaises(ValueError):
+            PipelineInput(
+                content=self.sample_content,
+                video_source_path=[nonexistent_1, nonexistent_2],
+                num_videos=1,
+                api_keys=["AIzaSyFakeKey123"],
+                output_dir=self.mock_output_dir,
+            )
+
+        empty_1 = self.root_temp / "empty_pool_1"
+        empty_2 = self.root_temp / "empty_pool_2"
+        empty_1.mkdir(parents=True, exist_ok=True)
+        empty_2.mkdir(parents=True, exist_ok=True)
+
+        inp_empty = PipelineInput(
+            content=self.sample_content,
+            video_source_path=[empty_1, empty_2],
+            num_videos=1,
+            api_keys=["AIzaSyFakeKey123"],
+            output_dir=self.mock_output_dir,
+        )
+        with self.assertRaises(StepValidationError):
+            self.pipeline.step_1_validate_inputs(inp_empty)
+
     # -------------------------------------------------------------------------
     # TEST BƯỚC 2: CONTENT EXTRACTION
     # -------------------------------------------------------------------------
